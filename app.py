@@ -29,7 +29,7 @@ def store_feedback(question, answer, score, comment, category):
             VALUES (?, ?, ?, ?, ?)
         """, (
             "12345",
-            datetime.now().isoformat(),
+            "Test!",
             "Test!",
             "Test!",
             "Test!"
