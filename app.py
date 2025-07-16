@@ -24,17 +24,15 @@ def store_feedback(question, answer, score, comment, category):
         )
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO ai_squad_np.default.feedback
-            (question, answer, score, comment, timestamp, category, user)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO ai_squad_np.default.handyman_feedback
+            (id, timestamp, message, feedback, comment)
+            VALUES (?, ?, ?, ?, ?)
         """, (
-            question,
-            answer,
-            score,
-            comment,
+            "12345",
             datetime.now().isoformat(),
-            category,
-            ""
+            "Test!",
+            "Test!",
+            "Test!"
         ))
         cursor.close()
         conn.close()
