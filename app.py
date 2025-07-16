@@ -3,6 +3,8 @@ import requests
 from datetime import datetime
 import databricks.sql
 import threading
+import uuid
+import traceback
 
 st.set_page_config(page_title="Field Staff Chatbot")
 st.title("Field Staff Chatbot")
@@ -16,7 +18,9 @@ if "pending_feedback" not in st.session_state:
  
 # Function to store feedback in a background thread
 def store_feedback(question, answer, score, comment, category):
+    print("🛠️ store_feedback() called...")
     try:
+        print("🚀 Connecting to Databricks...")
         conn = databricks.sql.connect(
             server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
             http_path=st.secrets["DATABRICKS_HTTP_PATH"],
@@ -28,7 +32,7 @@ def store_feedback(question, answer, score, comment, category):
             (id, timestamp, message, feedback, comment)
             VALUES (?, ?, ?, ?, ?)
         """, (
-            "12345",
+            str(uuid.uuid4()),
             "Test!",
             "Test!",
             "Test!",
@@ -37,6 +41,7 @@ def store_feedback(question, answer, score, comment, category):
         cursor.close()
         conn.close()
     except Exception as e:
+        traceback.print_exc()
         print(f"⚠️ Could not store feedback: {e}")
  
 # Handle user input
