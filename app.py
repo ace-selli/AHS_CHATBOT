@@ -3,7 +3,7 @@ import requests
 from datetime import datetime
 import databricks.sql
 import threading
- 
+
 st.set_page_config(page_title="Field Staff Chatbot")
 st.title("Field Staff Chatbot")
  
