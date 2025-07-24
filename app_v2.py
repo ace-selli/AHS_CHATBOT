@@ -343,71 +343,23 @@ class StreamlitChatbot:
         # Input section
         st.markdown("---")
         
-        # Create columns for input and buttons
-        input_col, send_col, clear_col = st.columns([6, 1, 1])
+        # Create columns for clear button
+        col1, col2 = st.columns([8, 1])
         
-        with input_col:
-            user_input = st.text_area(
-                "Type your message here...",
-                key=f"user_input_{st.session_state.input_key_counter}",
-                height=80,
-                placeholder="Type your message here... (Press Ctrl+Enter to send)",
-                help="Press Ctrl+Enter to send your message"
-            )
-        
-        with send_col:
-            send_button = st.button("Send", type="primary", use_container_width=True)
-        
-        with clear_col:
+        with col2:
             clear_button = st.button("Clear", use_container_width=True)
         
-        # JavaScript to handle Ctrl+Enter - placed after the elements are created
-        st.components.v1.html(f"""
-        <script>
-        function setupKeyListener() {{
-            // Wait a bit for Streamlit to render the textarea
-            setTimeout(function() {{
-                const textareas = document.querySelectorAll('textarea');
-                const textarea = Array.from(textareas).find(ta => 
-                    ta.placeholder && ta.placeholder.includes('Type your message here')
-                );
-                
-                if (textarea && !textarea.hasAttribute('data-listener-added')) {{
-                    textarea.setAttribute('data-listener-added', 'true');
-                    textarea.addEventListener('keydown', function(e) {{
-                        if (e.ctrlKey && e.key === 'Enter') {{
-                            e.preventDefault();
-                            // Find the Send button
-                            const buttons = document.querySelectorAll('button');
-                            const sendButton = Array.from(buttons).find(btn => 
-                                btn.textContent && btn.textContent.trim() === 'Send'
-                            );
-                            if (sendButton) {{
-                                sendButton.click();
-                            }}
-                        }}
-                    }});
-                    console.log('Ctrl+Enter listener added to textarea');
-                }} else if (!textarea) {{
-                    console.log('Textarea not found, retrying...');
-                    setTimeout(setupKeyListener, 100);
-                }}
-            }}, 100);
-        }}
-        
-        // Set up the listener
-        setupKeyListener();
-        
-        // Also set up listener when page changes (for Streamlit reruns)
-        document.addEventListener('DOMContentLoaded', setupKeyListener);
-        </script>
-        """, height=0)
+        # Use st.chat_input for built-in Enter key support
+        user_input = st.chat_input(
+            placeholder="Type your message here... (Press Enter to send)",
+            key=f"chat_input_{st.session_state.input_key_counter}"
+        )
         
         # Handle button clicks
         if clear_button:
             self._clear_chat()
         
-        if send_button and user_input.strip():
+        if user_input and user_input.strip():
             # Add user message
             st.session_state.chat_history.append({
                 'role': 'user', 
