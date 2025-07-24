@@ -298,6 +298,9 @@ class StreamlitChatbot:
         
         st.markdown('<div class="feedback-container">', unsafe_allow_html=True)
         
+        # Check current selection for styling
+        selected_feedback = st.session_state.feedback_selection.get(str(message_index))
+        
         # Feedback buttons
         col1, col2, col3 = st.columns([1, 1, 6])
         
@@ -313,8 +316,19 @@ class StreamlitChatbot:
                 st.session_state.feedback_selection[str(message_index)] = 'thumbs-down'
                 st.rerun()
         
+        # Add CSS to highlight selected button after rendering
+        if selected_feedback:
+            button_selector = "1" if selected_feedback == 'thumbs-up' else "2"
+            st.markdown(f"""
+            <style>
+            .feedback-container div[data-testid="column"]:nth-child({button_selector}) button {{
+                border: 2px solid #FF3621 !important;
+                background-color: rgba(255, 54, 33, 0.1) !important;
+            }}
+            </style>
+            """, unsafe_allow_html=True)
+        
         # Show form ONLY if a thumb button was pressed
-        selected_feedback = st.session_state.feedback_selection.get(str(message_index))
         if selected_feedback:
             # Comment box - only show after selection
             comment_key = f"comment_{message_index}"
