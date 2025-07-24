@@ -138,12 +138,6 @@ class StreamlitChatbot:
             border-radius: 20px;
         }
         
-        /* Style for selected feedback buttons */
-        .feedback-selected {
-            border: 2px solid #FF3621 !important;
-            background-color: rgba(255, 54, 33, 0.1) !important;
-        }
-        
         .feedback-buttons {
             display: flex;
             gap: 10px;
@@ -296,12 +290,7 @@ class StreamlitChatbot:
                        unsafe_allow_html=True)
             return
         
-        # Create unique container ID for this feedback section
-        container_id = f"feedback-{message_index}"
-        st.markdown(f'<div class="feedback-container" id="{container_id}">', unsafe_allow_html=True)
-        
-        # Check current selection for styling
-        selected_feedback = st.session_state.feedback_selection.get(str(message_index))
+        st.markdown('<div class="feedback-container">', unsafe_allow_html=True)
         
         # Feedback buttons
         col1, col2, col3 = st.columns([1, 1, 6])
@@ -318,21 +307,12 @@ class StreamlitChatbot:
                 st.session_state.feedback_selection[str(message_index)] = 'thumbs-down'
                 st.rerun()
         
-        # Add CSS to highlight selected button using the unique container ID
+        # Show selected feedback and form ONLY if a thumb button was pressed
+        selected_feedback = st.session_state.feedback_selection.get(str(message_index))
         if selected_feedback:
-            button_position = "1" if selected_feedback == 'thumbs-up' else "2"
-            st.markdown(f"""
-            <style>
-            #{container_id} div[data-testid="column"]:nth-child({button_position}) button {{
-                border: 2px solid #FF3621 !important;
-                background-color: rgba(255, 54, 33, 0.1) !important;
-                box-shadow: 0 0 0 1px #FF3621 !important;
-            }}
-            </style>
-            """, unsafe_allow_html=True)
-        
-        # Show form ONLY if a thumb button was pressed
-        if selected_feedback:
+            feedback_text = "👍 Positive" if selected_feedback == 'thumbs-up' else "👎 Negative"
+            st.write(f"Selected: {feedback_text}")
+            
             # Comment box - only show after selection
             comment_key = f"comment_{message_index}"
             comment = st.text_area(
