@@ -158,9 +158,9 @@ class StreamlitChatbot:
             ACCESS_TOKEN = os.getenv("DATABRICKS_ACCESS_TOKEN", "dapi***")
             
             with sql.connect(
-                server_hostname=SERVER_HOSTNAME,
-                http_path=HTTP_PATH,
-                access_token=ACCESS_TOKEN,
+                server_hostname=DATABRICKS_SERVER_HOSTNAME,
+                http_path=DATABRICKS_HTTP_PATH,
+                access_token=DATABRICKS_PAT,
                 auth_type="databricks-token"
             ) as connection:
                 with connection.cursor() as cursor:
@@ -308,19 +308,6 @@ class StreamlitChatbot:
     def _handle_feedback_submission(self, message_index, comment):
         """Handle feedback submission"""
         try:
-            # Get current user info
-            user_email = "unknown_user"  # Default fallback
-            
-            if DATABRICKS_AVAILABLE:
-                try:
-                    w = WorkspaceClient()
-                    current_user_info = w.current_user.me()
-                    user_email = current_user_info.user_name
-                except Exception as e:
-                    print(f"Could not get user info: {e}")
-                    # Use Streamlit's built-in user identification if available
-                    user_email = st.experimental_user.email if hasattr(st, 'experimental_user') else "streamlit_user"
-            
             # Get feedback selection
             feedback_value = st.session_state.feedback_selection.get(str(message_index), 'none')
             
@@ -328,7 +315,6 @@ class StreamlitChatbot:
             feedback_data = {
                 'id': str(uuid.uuid4()),
                 'timestamp': datetime.datetime.utcnow().isoformat(),
-                'user_email': user_email,
                 'message': str(st.session_state.chat_history),
                 'feedback': feedback_value,
                 'comment': comment or ''
