@@ -174,24 +174,41 @@ class StreamlitChatbot:
             background-color: #EEEDE9;
             border-left: 4px solid #1B3139;
             padding: 12px 16px;
-            margin: 15px 0 10px 0; /* Reduced bottom margin from 25px to 10px */
+            margin: 15px 0 0px 0; /* Removed bottom margin completely */
             border-radius: 6px;
             font-size: 14px;
             color: #1B3139;
         }
         
         .chat-area {
-            margin-top: 0px; /* Reduced from 10px to 0px */
+            margin-top: 0px !important;
+            padding-top: 0px !important;
         }
         
-        /* Remove default Streamlit container margins that might cause gaps */
+        /* Target Streamlit's default container spacing */
         .block-container {
             padding-top: 1rem;
         }
         
-        /* Ensure first message doesn't have extra top margin */
-        .chat-area > div:first-child .chat-message {
-            margin-top: 5px; /* Reduced margin for first message */
+        /* Remove margins from Streamlit's internal divs */
+        .stMarkdown {
+            margin-bottom: 0rem !important;
+        }
+        
+        /* Target the container that holds chat messages */
+        div[data-testid="stVerticalBlock"] > div {
+            gap: 0rem !important;
+        }
+        
+        /* Ensure first message doesn't have extra top margin/padding */
+        .chat-area .chat-message:first-of-type {
+            margin-top: 0px !important;
+        }
+        
+        /* Remove gap between info note and chat area */
+        .content-with-bottom-padding > div:first-child {
+            margin-top: 0px !important;
+            padding-top: 0px !important;
         }
         </style>
         """, unsafe_allow_html=True)
