@@ -12,7 +12,7 @@ try:
     DATABRICKS_AVAILABLE = True
 except ImportError:
     DATABRICKS_AVAILABLE = False
-    print("Databricks SDK not available. Feedback will be stored locally instead of in database.")
+    st.warning("Databricks SDK not available. Feedback will be stored locally instead of in database.")
 
 # Alternative database options
 try:
@@ -351,7 +351,8 @@ class StreamlitChatbot:
                 "Type your message here...",
                 key=f"user_input_{st.session_state.input_key_counter}",
                 height=80,
-                placeholder="Type your message here..."
+                placeholder="Type your message here... (Press Ctrl+Enter to send)",
+                help="Press Ctrl+Enter to send your message"
             )
         
         with send_col:
@@ -359,6 +360,48 @@ class StreamlitChatbot:
         
         with clear_col:
             clear_button = st.button("Clear", use_container_width=True)
+        
+        # JavaScript to handle Ctrl+Enter - placed after the elements are created
+        st.components.v1.html(f"""
+        <script>
+        function setupKeyListener() {{
+            // Wait a bit for Streamlit to render the textarea
+            setTimeout(function() {{
+                const textareas = document.querySelectorAll('textarea');
+                const textarea = Array.from(textareas).find(ta => 
+                    ta.placeholder && ta.placeholder.includes('Type your message here')
+                );
+                
+                if (textarea && !textarea.hasAttribute('data-listener-added')) {{
+                    textarea.setAttribute('data-listener-added', 'true');
+                    textarea.addEventListener('keydown', function(e) {{
+                        if (e.ctrlKey && e.key === 'Enter') {{
+                            e.preventDefault();
+                            // Find the Send button
+                            const buttons = document.querySelectorAll('button');
+                            const sendButton = Array.from(buttons).find(btn => 
+                                btn.textContent && btn.textContent.trim() === 'Send'
+                            );
+                            if (sendButton) {{
+                                sendButton.click();
+                            }}
+                        }}
+                    }});
+                    console.log('Ctrl+Enter listener added to textarea');
+                }} else if (!textarea) {{
+                    console.log('Textarea not found, retrying...');
+                    setTimeout(setupKeyListener, 100);
+                }}
+            }}, 100);
+        }}
+        
+        // Set up the listener
+        setupKeyListener();
+        
+        // Also set up listener when page changes (for Streamlit reruns)
+        document.addEventListener('DOMContentLoaded', setupKeyListener);
+        </script>
+        """, height=0)
         
         # Handle button clicks
         if clear_button:
