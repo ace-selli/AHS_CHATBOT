@@ -3,9 +3,23 @@ import datetime
 import uuid
 import time
 import threading
-from databricks.sdk import WorkspaceClient
-from databricks import sql
 import os
+
+# Optional Databricks imports with fallback
+try:
+    from databricks.sdk import WorkspaceClient
+    from databricks import sql
+    DATABRICKS_AVAILABLE = True
+except ImportError:
+    DATABRICKS_AVAILABLE = False
+    st.warning("Databricks SDK not available. Feedback will be stored locally instead of in database.")
+
+# Alternative database options
+try:
+    import sqlite3
+    SQLITE_AVAILABLE = True
+except ImportError:
+    SQLITE_AVAILABLE = False
 
 # You'll need to implement this function or replace with your model serving logic
 def query_endpoint(endpoint_name, messages, max_tokens=128):
@@ -123,38 +137,108 @@ class StreamlitChatbot:
             raise
     
     def _save_feedback_to_database(self, feedback_data):
-        """Save feedback to database in a separate thread"""
+        """Save feedback to database with multiple fallback options"""
         def insert_feedback():
-            try:
-                # Replace with your actual database credentials
-                SERVER_HOSTNAME = "adb***"  # Replace with your server hostname
-                HTTP_PATH = "sql***"        # Replace with your HTTP path
-                ACCESS_TOKEN = "dapi***"    # Replace with your access token
-                
-                with sql.connect(
-                    server_hostname=SERVER_HOSTNAME,
-                    http_path=HTTP_PATH,
-                    access_token=ACCESS_TOKEN,
-                    auth_type="databricks-token"
-                ) as connection:
-                    with connection.cursor() as cursor:
-                        cursor.execute("""
-                            INSERT INTO ai_squad_np.default.handyman_feedback (
-                                id, timestamp, message, feedback, comment
-                            ) VALUES (?, ?, ?, ?, ?)
-                        """, (
-                            feedback_data['id'],
-                            feedback_data['timestamp'],
-                            feedback_data['message'],
-                            feedback_data['feedback'],
-                            feedback_data['comment']
-                        ))
-                        print("✅ Feedback saved successfully")
-            except Exception as e:
-                print(f"❌ Feedback insert failed: {str(e)}")
+            if DATABRICKS_AVAILABLE:
+                self._save_to_databricks(feedback_data)
+            elif SQLITE_AVAILABLE:
+                self._save_to_sqlite(feedback_data)
+            else:
+                self._save_to_local_file(feedback_data)
         
         # Run database insert in background thread
         threading.Thread(target=insert_feedback).start()
+    
+    def _save_to_databricks(self, feedback_data):
+        """Save feedback to Databricks database"""
+        try:
+            # Replace with your actual database credentials
+            SERVER_HOSTNAME = os.getenv("DATABRICKS_SERVER_HOSTNAME", "adb***")
+            HTTP_PATH = os.getenv("DATABRICKS_HTTP_PATH", "sql***")
+            ACCESS_TOKEN = os.getenv("DATABRICKS_ACCESS_TOKEN", "dapi***")
+            
+            with sql.connect(
+                server_hostname=SERVER_HOSTNAME,
+                http_path=HTTP_PATH,
+                access_token=ACCESS_TOKEN,
+                auth_type="databricks-token"
+            ) as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO ai_squad_np.default.handyman_feedback (
+                            id, timestamp, message, feedback, comment
+                        ) VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        feedback_data['id'],
+                        feedback_data['timestamp'],
+                        feedback_data['message'],
+                        feedback_data['feedback'],
+                        feedback_data['comment']
+                    ))
+                    print("✅ Feedback saved to Databricks successfully")
+        except Exception as e:
+            print(f"❌ Databricks insert failed: {str(e)}")
+            # Fallback to local storage
+            if SQLITE_AVAILABLE:
+                self._save_to_sqlite(feedback_data)
+            else:
+                self._save_to_local_file(feedback_data)
+    
+    def _save_to_sqlite(self, feedback_data):
+        """Save feedback to local SQLite database"""
+        try:
+            # Create database if it doesn't exist
+            conn = sqlite3.connect('feedback.db')
+            cursor = conn.cursor()
+            
+            # Create table if it doesn't exist
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS handyman_feedback (
+                    id TEXT PRIMARY KEY,
+                    timestamp TEXT,
+                    message TEXT,
+                    feedback TEXT,
+                    comment TEXT
+                )
+            ''')
+            
+            # Insert feedback
+            cursor.execute('''
+                INSERT INTO handyman_feedback (id, timestamp, message, feedback, comment)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                feedback_data['id'],
+                feedback_data['timestamp'],
+                feedback_data['message'],
+                feedback_data['feedback'],
+                feedback_data['comment']
+            ))
+            
+            conn.commit()
+            conn.close()
+            print("✅ Feedback saved to SQLite successfully")
+        except Exception as e:
+            print(f"❌ SQLite insert failed: {str(e)}")
+            # Final fallback to file
+            self._save_to_local_file(feedback_data)
+    
+    def _save_to_local_file(self, feedback_data):
+        """Save feedback to local JSON file as final fallback"""
+        try:
+            import json
+            filename = 'feedback_log.jsonl'
+            
+            with open(filename, 'a') as f:
+                f.write(json.dumps(feedback_data) + '\n')
+            
+            print("✅ Feedback saved to local file successfully")
+        except Exception as e:
+            print(f"❌ Local file save failed: {str(e)}")
+            # Store in session state as absolute last resort
+            if 'feedback_log' not in st.session_state:
+                st.session_state.feedback_log = []
+            st.session_state.feedback_log.append(feedback_data)
+            print("✅ Feedback stored in session state")
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling"""
@@ -225,9 +309,17 @@ class StreamlitChatbot:
         """Handle feedback submission"""
         try:
             # Get current user info
-            w = WorkspaceClient()
-            current_user_info = w.current_user.me()
-            user_email = current_user_info.user_name
+            user_email = "unknown_user"  # Default fallback
+            
+            if DATABRICKS_AVAILABLE:
+                try:
+                    w = WorkspaceClient()
+                    current_user_info = w.current_user.me()
+                    user_email = current_user_info.user_name
+                except Exception as e:
+                    print(f"Could not get user info: {e}")
+                    # Use Streamlit's built-in user identification if available
+                    user_email = st.experimental_user.email if hasattr(st, 'experimental_user') else "streamlit_user"
             
             # Get feedback selection
             feedback_value = st.session_state.feedback_selection.get(str(message_index), 'none')
@@ -236,6 +328,7 @@ class StreamlitChatbot:
             feedback_data = {
                 'id': str(uuid.uuid4()),
                 'timestamp': datetime.datetime.utcnow().isoformat(),
+                'user_email': user_email,
                 'message': str(st.session_state.chat_history),
                 'feedback': feedback_value,
                 'comment': comment or ''
@@ -253,6 +346,7 @@ class StreamlitChatbot:
             
         except Exception as e:
             st.error(f"Failed to submit feedback: {str(e)}")
+            print(f"Feedback submission error: {e}")
     
     def _clear_chat(self):
         """Clear the chat history"""
@@ -347,5 +441,40 @@ def main():
     # Render the chatbot
     chatbot.render()
 
+# Requirements and setup instructions
+def show_setup_instructions():
+    """Show setup instructions in the sidebar"""
+    with st.sidebar:
+        st.header("Setup Instructions")
+        
+        st.subheader("1. Install Dependencies")
+        st.code("""
+# Basic requirements
+pip install streamlit
+
+# For Databricks integration (optional)
+pip install databricks-sdk databricks-sql-connector
+
+# For local SQLite fallback
+# sqlite3 is included with Python
+        """)
+        
+        st.subheader("2. Environment Variables")
+        st.text("Set these if using Databricks:")
+        st.code("""
+DATABRICKS_SERVER_HOSTNAME=your_hostname
+DATABRICKS_HTTP_PATH=your_http_path  
+DATABRICKS_ACCESS_TOKEN=your_token
+        """)
+        
+        st.subheader("3. Model Endpoint")
+        st.text("Replace the query_endpoint function with your model serving logic")
+        
+        if not DATABRICKS_AVAILABLE:
+            st.warning("⚠️ Databricks SDK not installed. Feedback will use local storage.")
+        else:
+            st.success("✅ Databricks SDK available")
+
 if __name__ == "__main__":
+    show_setup_instructions()
     main()
