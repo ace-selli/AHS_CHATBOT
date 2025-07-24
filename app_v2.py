@@ -169,6 +169,20 @@ class StreamlitChatbot:
         .content-with-bottom-padding {
             padding-bottom: 120px;
         }
+        
+        .info-note {
+            background-color: #EEEDE9;
+            border-left: 4px solid #1B3139;
+            padding: 12px 16px;
+            margin: 15px 0 25px 0;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #1B3139;
+        }
+        
+        .chat-area {
+            margin-top: 10px;
+        }
         </style>
         """, unsafe_allow_html=True)
     
@@ -350,16 +364,24 @@ class StreamlitChatbot:
         # Title and description
         st.markdown('<h2 class="chat-title">Ace Handyman Services Customer Rep</h2>', 
                    unsafe_allow_html=True)
-        st.info("Note: Ask the below rep for handyman job information.")
+        
+        # Custom styled info note
+        st.markdown('''
+        <div class="info-note">
+            💬 Ask the rep below for handyman job information and estimates.
+        </div>
+        ''', unsafe_allow_html=True)
         
         # Chat history container with bottom padding
         st.markdown('<div class="content-with-bottom-padding">', unsafe_allow_html=True)
+        st.markdown('<div class="chat-area">', unsafe_allow_html=True)
         chat_container = st.container()
         
         with chat_container:
             # Display chat history
             for i, message in enumerate(st.session_state.chat_history):
                 self._render_message(message, i)
+        st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         
         # Fixed input section at bottom of screen
