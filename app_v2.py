@@ -123,8 +123,9 @@ class StreamlitChatbot:
         .feedback-container {
             margin-top: 10px;
             padding: 10px;
-            background-color: #EEEDE9;
+            background-color: transparent; /* Changed from #EEEDE9 to transparent */
             border-radius: 10px;
+            border: none; /* Remove any potential border */
         }
         
         .feedback-thankyou {
