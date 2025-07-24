@@ -23,40 +23,17 @@ except ImportError:
 
 # You'll need to implement this function or replace with your model serving logic
 def query_endpoint(endpoint_name, messages, max_tokens=128):
-    """
-    Replace this with your actual model serving implementation
-    
-    Expected format for messages:
-    [
-        {"role": "user", "content": "Hello"},
-        {"role": "assistant", "content": "Hi there!"},
-        {"role": "user", "content": "How are you?"}
-    ]
-    """
-    
-    # OPTION 1: If you're using Databricks Model Serving
-    # Uncomment and modify this section:
-    """
+    """Query Databricks model serving endpoint - simple version"""
     try:
         import requests
-        import json
         
-        # Get credentials from Streamlit secrets
-        hostname = st.secrets.get("DATABRICKS_SERVER_HOSTNAME", os.getenv("DATABRICKS_SERVER_HOSTNAME"))
-        token = st.secrets.get("DATABRICKS_PAT", os.getenv("DATABRICKS_PAT"))
-        
-        if not hostname or not token:
-            raise Exception("Databricks credentials not found in secrets or environment variables")
-        
-        # Databricks model serving endpoint URL
-        url = st.secrets.get("ENDPOINT_URL", os.getenv("ENDPOINT_URL")
+        url = f"https://{st.secrets['DATABRICKS_SERVER_HOSTNAME']}/serving-endpoints/{endpoint_name}/invocations"
         
         headers = {
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {st.secrets['DATABRICKS_PAT']}",
             "Content-Type": "application/json"
         }
         
-        # Format the request for your model
         request_data = {
             "messages": messages,
             "max_tokens": max_tokens,
@@ -68,70 +45,18 @@ def query_endpoint(endpoint_name, messages, max_tokens=128):
         
         result = response.json()
         
-        # Adjust this based on your model's response format
-        if "choices" in result:
+        # Handle common response formats
+        if "choices" in result and len(result["choices"]) > 0:
             return {"content": result["choices"][0]["message"]["content"]}
-        elif "predictions" in result:
-            return {"content": result["predictions"][0]["content"]}
+        elif "predictions" in result and len(result["predictions"]) > 0:
+            return {"content": result["predictions"][0]}
+        elif "content" in result:
+            return {"content": result["content"]}
         else:
             return {"content": str(result)}
             
     except Exception as e:
-        raise Exception(f"Databricks model endpoint error: {str(e)}")
-    """
-    
-    # OPTION 2: If you're using OpenAI API
-    # Uncomment and modify this section:
-    """
-    try:
-        import openai
-        
-        # Get API key from Streamlit secrets
-        api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
-        
-        if not api_key:
-            raise Exception("OpenAI API key not found in secrets or environment variables")
-        
-        client = openai.OpenAI(api_key=api_key)
-        
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # or your preferred model
-            messages=messages,
-            max_tokens=max_tokens
-        )
-        
-        return {"content": response.choices[0].message.content}
-    except Exception as e:
-        raise Exception(f"OpenAI API error: {str(e)}")
-    """
-    
-    # PLACEHOLDER - Remove this when you implement your actual logic
-    print(f"⚠️  PLACEHOLDER: Called endpoint '{endpoint_name}' with {len(messages)} messages")
-    print(f"Last message: {messages[-1]['content']}")
-    
-    # Return a more helpful placeholder
-    return {
-        "content": """🔧 **This is a placeholder response.** 
-
-To get your chatbot working with Databricks:
-
-1. **Uncomment Option 1** in the `query_endpoint` function above
-2. **Make sure your Streamlit secrets include:**
-   - `DATABRICKS_SERVER_HOSTNAME`
-   - `DATABRICKS_ACCESS_TOKEN`
-3. **Update the `endpoint_name`** in the main() function to your actual model endpoint name
-4. **Test with a simple message**
-
-Your Streamlit secrets should look like:
-```toml
-DATABRICKS_SERVER_HOSTNAME = "your-hostname.databricks.com"
-DATABRICKS_ACCESS_TOKEN = "dapi..."
-DATABRICKS_HTTP_PATH = "/sql/1.0/warehouses/..."  # for feedback database
-```
-
-Your last message was: "{}"
-""".format(messages[-1]['content'] if messages else "No messages")
-    }
+        raise Exception(f"Model endpoint error: {str(e)}")
 
 class StreamlitChatbot:
     def __init__(self, endpoint_name):
@@ -236,108 +161,40 @@ class StreamlitChatbot:
             raise
     
     def _save_feedback_to_database(self, feedback_data):
-        """Save feedback to database with multiple fallback options"""
+        """Save feedback to database - simple version"""
         def insert_feedback():
-            if DATABRICKS_AVAILABLE:
-                self._save_to_databricks(feedback_data)
-            elif SQLITE_AVAILABLE:
-                self._save_to_sqlite(feedback_data)
-            else:
-                self._save_to_local_file(feedback_data)
-        
-        # Run database insert in background thread
-        threading.Thread(target=insert_feedback).start()
-    
-    def _save_to_databricks(self, feedback_data):
-        """Save feedback to Databricks database"""
-        try:
-            # Get credentials from Streamlit secrets
-            SERVER_HOSTNAME = st.secrets.get("DATABRICKS_SERVER_HOSTNAME", os.getenv("DATABRICKS_SERVER_HOSTNAME", "adb***"))
-            HTTP_PATH = st.secrets.get("DATABRICKS_HTTP_PATH", os.getenv("DATABRICKS_HTTP_PATH", "sql***"))
-            ACCESS_TOKEN = st.secrets.get("DATABRICKS_PAT", os.getenv("DATABRICKS_PAT", "dapi***"))
-            
-            with sql.connect(
-                server_hostname=SERVER_HOSTNAME,
-                http_path=HTTP_PATH,
-                access_token=ACCESS_TOKEN,
-                auth_type="databricks-token"
-            ) as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute("""
-                        INSERT INTO ai_squad_np.default.handyman_feedback (
-                            id, timestamp, message, feedback, comment
-                        ) VALUES (?, ?, ?, ?, ?)
-                    """, (
-                        feedback_data['id'],
-                        feedback_data['timestamp'],
-                        feedback_data['message'],
-                        feedback_data['feedback'],
-                        feedback_data['comment']
-                    ))
-                    print("✅ Feedback saved to Databricks successfully")
-        except Exception as e:
-            print(f"❌ Databricks insert failed: {str(e)}")
-            # Fallback to local storage
-            if SQLITE_AVAILABLE:
-                self._save_to_sqlite(feedback_data)
-            else:
-                self._save_to_local_file(feedback_data)
-    
-    def _save_to_sqlite(self, feedback_data):
-        """Save feedback to local SQLite database"""
-        try:
-            # Create database if it doesn't exist
-            conn = sqlite3.connect('feedback.db')
-            cursor = conn.cursor()
-            
-            # Create table if it doesn't exist
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS handyman_feedback (
-                    id TEXT PRIMARY KEY,
-                    timestamp TEXT,
-                    message TEXT,
-                    feedback TEXT,
-                    comment TEXT
+            try:
+                print("🛠️ Storing feedback...")
+                print("🚀 Connecting to Databricks...")
+                
+                conn = sql.connect(
+                    server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
+                    http_path=st.secrets["DATABRICKS_HTTP_PATH"],
+                    access_token=st.secrets["DATABRICKS_PAT"]
                 )
-            ''')
-            
-            # Insert feedback
-            cursor.execute('''
-                INSERT INTO handyman_feedback (id, timestamp, message, feedback, comment)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (
-                feedback_data['id'],
-                feedback_data['timestamp'],
-                feedback_data['message'],
-                feedback_data['feedback'],
-                feedback_data['comment']
-            ))
-            
-            conn.commit()
-            conn.close()
-            print("✅ Feedback saved to SQLite successfully")
-        except Exception as e:
-            print(f"❌ SQLite insert failed: {str(e)}")
-            # Final fallback to file
-            self._save_to_local_file(feedback_data)
-    
-    def _save_to_local_file(self, feedback_data):
-        """Save feedback to local JSON file as final fallback"""
-        try:
-            import json
-            filename = 'feedback_log.jsonl'
-            
-            with open(filename, 'a') as f:
-                f.write(json.dumps(feedback_data) + '\n')
-            
-            print("✅ Feedback saved to local file successfully")
-        except Exception as e:
-            print(f"❌ Local file save failed: {str(e)}")
-            # Store in session state as absolute last resort
-            if 'feedback_log' not in st.session_state:
-                st.session_state.feedback_log = []
-            st.session_state.feedback_log.append(feedback_data)
-            print("✅ Feedback stored in session state")
+                
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO ai_squad_np.default.handyman_feedback
+                    (id, timestamp, message, feedback, comment)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    feedback_data['id'],
+                    feedback_data['timestamp'],
+                    feedback_data['message'],
+                    feedback_data['feedback'],
+                    feedback_data['comment']
+                ))
+                
+                cursor.close()
+                conn.close()
+                print("✅ Feedback saved successfully")
+                
+            except Exception as e:
+                print(f"⚠️ Could not store feedback: {e}")
+        
+        # Run in background thread
+        threading.Thread(target=insert_feedback).start()
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling"""
@@ -520,7 +377,7 @@ def main():
     )
     
     # Initialize chatbot
-    endpoint_name = "your_endpoint_name"  # Replace with your actual endpoint name
+    endpoint_name = st.secrets.get("DATABRICKS_ENDPOINT_NAME", "your_endpoint_name")
     chatbot = StreamlitChatbot(endpoint_name)
     
     # Render the chatbot
