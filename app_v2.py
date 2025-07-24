@@ -151,24 +151,6 @@ class StreamlitChatbot:
             margin: 10px 0;
             font-style: italic;
         }
-        
-        /* Sticky input container */
-        .input-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: #F9F7F4;
-            padding: 20px;
-            border-top: 2px solid #EEEDE9;
-            z-index: 1000;
-            box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
-        }
-        
-        /* Add bottom padding to main content so it doesn't get hidden */
-        .main-content {
-            padding-bottom: 120px;
-        }
         </style>
         """, unsafe_allow_html=True)
     
@@ -350,45 +332,33 @@ class StreamlitChatbot:
                    unsafe_allow_html=True)
         st.info("Note: Ask the below rep for handyman job information.")
         
-        # Chat history container with bottom padding
-        st.markdown('<div class="main-content">', unsafe_allow_html=True)
+        # Chat history container
         chat_container = st.container()
         
         with chat_container:
             # Display chat history
             for i, message in enumerate(st.session_state.chat_history):
                 self._render_message(message, i)
-        st.markdown('</div>', unsafe_allow_html=True)
         
-        # Fixed input section at bottom
-        input_placeholder = st.empty()
+        # Input section at bottom
+        # Create columns for chat input and clear button
+        input_col, clear_col = st.columns([8, 1])
         
-        with input_placeholder.container():
-            st.markdown('<div class="input-container">', unsafe_allow_html=True)
-            
-            # Create columns for input and clear button
-            input_col, clear_col = st.columns([8, 1])
-            
-            with input_col:
-                user_input = st.text_area(
-                    "Type your message here...",
-                    key=f"user_input_{st.session_state.input_key_counter}",
-                    height=60,
-                    placeholder="Type your message here... (Press Enter to send)"
-                )
-            
-            with clear_col:
-                st.markdown("<br>", unsafe_allow_html=True)  # Add spacing to align with textarea
-                clear_button = st.button("Clear", use_container_width=True)
-                send_button = st.button("Send", type="primary", use_container_width=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+        with input_col:
+            # Use st.chat_input for built-in Enter key support
+            user_input = st.chat_input(
+                placeholder="Type your message here... (Press Enter to send)",
+                key=f"chat_input_{st.session_state.input_key_counter}"
+            )
+        
+        with clear_col:
+            clear_button = st.button("Clear", use_container_width=True)
         
         # Handle button clicks
         if clear_button:
             self._clear_chat()
         
-        if send_button and user_input and user_input.strip():
+        if user_input and user_input.strip():
             # Add user message
             st.session_state.chat_history.append({
                 'role': 'user', 
