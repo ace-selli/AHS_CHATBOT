@@ -365,24 +365,26 @@ class StreamlitChatbot:
         st.markdown('<h2 class="chat-title">Ace Handyman Services Customer Rep</h2>', 
                    unsafe_allow_html=True)
         
-        # Custom styled info note
+        # Chat history container with bottom padding - moved up before info note
+        st.markdown('<div class="content-with-bottom-padding">', unsafe_allow_html=True)
+        
+        # Custom styled info note and chat area in single container to eliminate gap
         st.markdown('''
         <div class="info-note">
             💬 Ask the rep below for handyman job information and estimates.
         </div>
+        <div class="chat-area">
         ''', unsafe_allow_html=True)
         
-        # Chat history container with bottom padding
-        st.markdown('<div class="content-with-bottom-padding">', unsafe_allow_html=True)
-        st.markdown('<div class="chat-area">', unsafe_allow_html=True)
         chat_container = st.container()
         
         with chat_container:
             # Display chat history
             for i, message in enumerate(st.session_state.chat_history):
                 self._render_message(message, i)
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-area
+        st.markdown('</div>', unsafe_allow_html=True)  # Close content-with-bottom-padding
         
         # Fixed input section at bottom of screen
         st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
