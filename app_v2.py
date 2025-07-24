@@ -361,15 +361,10 @@ class StreamlitChatbot:
     
     def render(self):
         """Main render method for the chatbot interface"""
-        # Title and description
-        st.markdown('<h2 class="chat-title">Ace Handyman Services Customer Rep</h2>', 
-                   unsafe_allow_html=True)
-        
-        # Chat history container with bottom padding - moved up before info note
-        st.markdown('<div class="content-with-bottom-padding">', unsafe_allow_html=True)
-        
-        # Custom styled info note and chat area in single container to eliminate gap
+        # Title, info note, and chat area in single container to eliminate all gaps
         st.markdown('''
+        <div class="content-with-bottom-padding">
+        <h2 class="chat-title">Ace Handyman Services Customer Rep</h2>
         <div class="info-note">
             💬 Ask the rep below for handyman job information and estimates.
         </div>
@@ -382,6 +377,7 @@ class StreamlitChatbot:
             # Display chat history
             for i, message in enumerate(st.session_state.chat_history):
                 self._render_message(message, i)
+        
         
         st.markdown('</div>', unsafe_allow_html=True)  # Close chat-area
         st.markdown('</div>', unsafe_allow_html=True)  # Close content-with-bottom-padding
