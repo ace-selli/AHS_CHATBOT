@@ -25,14 +25,113 @@ except ImportError:
 def query_endpoint(endpoint_name, messages, max_tokens=128):
     """
     Replace this with your actual model serving implementation
+    
+    Expected format for messages:
+    [
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": "Hi there!"},
+        {"role": "user", "content": "How are you?"}
+    ]
     """
-    # Placeholder implementation - replace with your actual model serving code
+    
+    # OPTION 1: If you're using Databricks Model Serving
+    # Uncomment and modify this section:
+    """
     try:
-        # Your model serving logic here
-        # For now, returning a placeholder response
-        return {"content": "This is a placeholder response. Please implement your model serving logic."}
+        import requests
+        import json
+        
+        # Get credentials from Streamlit secrets
+        hostname = st.secrets.get("DATABRICKS_SERVER_HOSTNAME", os.getenv("DATABRICKS_SERVER_HOSTNAME"))
+        token = st.secrets.get("DATABRICKS_PAT", os.getenv("DATABRICKS_PAT"))
+        
+        if not hostname or not token:
+            raise Exception("Databricks credentials not found in secrets or environment variables")
+        
+        # Databricks model serving endpoint URL
+        url = st.secrets.get("ENDPOINT_URL", os.getenv("ENDPOINT_URL")
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Format the request for your model
+        request_data = {
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": 0.7
+        }
+        
+        response = requests.post(url, headers=headers, json=request_data)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        # Adjust this based on your model's response format
+        if "choices" in result:
+            return {"content": result["choices"][0]["message"]["content"]}
+        elif "predictions" in result:
+            return {"content": result["predictions"][0]["content"]}
+        else:
+            return {"content": str(result)}
+            
     except Exception as e:
-        raise Exception(f"Model endpoint error: {str(e)}")
+        raise Exception(f"Databricks model endpoint error: {str(e)}")
+    """
+    
+    # OPTION 2: If you're using OpenAI API
+    # Uncomment and modify this section:
+    """
+    try:
+        import openai
+        
+        # Get API key from Streamlit secrets
+        api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+        
+        if not api_key:
+            raise Exception("OpenAI API key not found in secrets or environment variables")
+        
+        client = openai.OpenAI(api_key=api_key)
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # or your preferred model
+            messages=messages,
+            max_tokens=max_tokens
+        )
+        
+        return {"content": response.choices[0].message.content}
+    except Exception as e:
+        raise Exception(f"OpenAI API error: {str(e)}")
+    """
+    
+    # PLACEHOLDER - Remove this when you implement your actual logic
+    print(f"⚠️  PLACEHOLDER: Called endpoint '{endpoint_name}' with {len(messages)} messages")
+    print(f"Last message: {messages[-1]['content']}")
+    
+    # Return a more helpful placeholder
+    return {
+        "content": """🔧 **This is a placeholder response.** 
+
+To get your chatbot working with Databricks:
+
+1. **Uncomment Option 1** in the `query_endpoint` function above
+2. **Make sure your Streamlit secrets include:**
+   - `DATABRICKS_SERVER_HOSTNAME`
+   - `DATABRICKS_ACCESS_TOKEN`
+3. **Update the `endpoint_name`** in the main() function to your actual model endpoint name
+4. **Test with a simple message**
+
+Your Streamlit secrets should look like:
+```toml
+DATABRICKS_SERVER_HOSTNAME = "your-hostname.databricks.com"
+DATABRICKS_ACCESS_TOKEN = "dapi..."
+DATABRICKS_HTTP_PATH = "/sql/1.0/warehouses/..."  # for feedback database
+```
+
+Your last message was: "{}"
+""".format(messages[-1]['content'] if messages else "No messages")
+    }
 
 class StreamlitChatbot:
     def __init__(self, endpoint_name):
@@ -152,15 +251,15 @@ class StreamlitChatbot:
     def _save_to_databricks(self, feedback_data):
         """Save feedback to Databricks database"""
         try:
-            # Replace with your actual database credentials
-            SERVER_HOSTNAME = os.getenv("DATABRICKS_SERVER_HOSTNAME", "adb***")
-            HTTP_PATH = os.getenv("DATABRICKS_HTTP_PATH", "sql***")
-            ACCESS_TOKEN = os.getenv("DATABRICKS_ACCESS_TOKEN", "dapi***")
+            # Get credentials from Streamlit secrets
+            SERVER_HOSTNAME = st.secrets.get("DATABRICKS_SERVER_HOSTNAME", os.getenv("DATABRICKS_SERVER_HOSTNAME", "adb***"))
+            HTTP_PATH = st.secrets.get("DATABRICKS_HTTP_PATH", os.getenv("DATABRICKS_HTTP_PATH", "sql***"))
+            ACCESS_TOKEN = st.secrets.get("DATABRICKS_PAT", os.getenv("DATABRICKS_PAT", "dapi***"))
             
             with sql.connect(
-                server_hostname=DATABRICKS_SERVER_HOSTNAME,
-                http_path=DATABRICKS_HTTP_PATH,
-                access_token=DATABRICKS_PAT,
+                server_hostname=SERVER_HOSTNAME,
+                http_path=HTTP_PATH,
+                access_token=ACCESS_TOKEN,
                 auth_type="databricks-token"
             ) as connection:
                 with connection.cursor() as cursor:
