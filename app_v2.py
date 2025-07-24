@@ -301,44 +301,26 @@ class StreamlitChatbot:
         # Check current selection
         selected_feedback = st.session_state.feedback_selection.get(str(message_index))
         
-        # Feedback buttons with conditional styling
+        # Feedback buttons
         col1, col2, col3 = st.columns([1, 1, 6])
         
         with col1:
             thumbs_up_key = f"thumbs_up_{message_index}"
-            # Add custom CSS class if this button is selected
-            if selected_feedback == 'thumbs-up':
-                st.markdown("""
-                <style>
-                div[data-testid="column"]:nth-child(1) button[kind="secondary"] {
-                    border: 2px solid #FF3621 !important;
-                    background-color: rgba(255, 54, 33, 0.1) !important;
-                }
-                </style>
-                """, unsafe_allow_html=True)
-            
-            if st.button("👍", key=thumbs_up_key, help="Good response"):
+            # Use type="primary" if selected to show visual difference
+            button_type = "primary" if selected_feedback == 'thumbs-up' else "secondary"
+            if st.button("👍", key=thumbs_up_key, help="Good response", type=button_type):
                 st.session_state.feedback_selection[str(message_index)] = 'thumbs-up'
                 st.rerun()
         
         with col2:
             thumbs_down_key = f"thumbs_down_{message_index}"
-            # Add custom CSS class if this button is selected
-            if selected_feedback == 'thumbs-down':
-                st.markdown("""
-                <style>
-                div[data-testid="column"]:nth-child(2) button[kind="secondary"] {
-                    border: 2px solid #FF3621 !important;
-                    background-color: rgba(255, 54, 33, 0.1) !important;
-                }
-                </style>
-                """, unsafe_allow_html=True)
-            
-            if st.button("👎", key=thumbs_down_key, help="Poor response"):
+            # Use type="primary" if selected to show visual difference
+            button_type = "primary" if selected_feedback == 'thumbs-down' else "secondary"
+            if st.button("👎", key=thumbs_down_key, help="Poor response", type=button_type):
                 st.session_state.feedback_selection[str(message_index)] = 'thumbs-down'
                 st.rerun()
         
-        # Show form ONLY if a thumb button was pressed (removed the "Selected:" text)
+        # Show form ONLY if a thumb button was pressed
         if selected_feedback:
             # Comment box - only show after selection
             comment_key = f"comment_{message_index}"
