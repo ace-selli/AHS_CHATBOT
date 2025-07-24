@@ -307,25 +307,25 @@ class StreamlitChatbot:
                 st.session_state.feedback_selection[str(message_index)] = 'thumbs-down'
                 st.rerun()
         
-        # Show selected feedback
+        # Show selected feedback and form ONLY if a thumb button was pressed
         selected_feedback = st.session_state.feedback_selection.get(str(message_index))
         if selected_feedback:
             feedback_text = "👍 Positive" if selected_feedback == 'thumbs-up' else "👎 Negative"
             st.write(f"Selected: {feedback_text}")
-        
-        # Comment box
-        comment_key = f"comment_{message_index}"
-        comment = st.text_area(
-            "Optional comment:",
-            key=comment_key,
-            height=60,
-            placeholder="Share your thoughts about this response..."
-        )
-        
-        # Submit button
-        submit_key = f"submit_{message_index}"
-        if st.button("Submit Feedback", key=submit_key, type="primary"):
-            self._handle_feedback_submission(message_index, comment)
+            
+            # Comment box - only show after selection
+            comment_key = f"comment_{message_index}"
+            comment = st.text_area(
+                "Optional comment:",
+                key=comment_key,
+                height=60,
+                placeholder="Share your thoughts about this response..."
+            )
+            
+            # Submit button - only show after selection
+            submit_key = f"submit_{message_index}"
+            if st.button("Submit Feedback", key=submit_key, type="primary"):
+                self._handle_feedback_submission(message_index, comment)
         
         st.markdown('</div>', unsafe_allow_html=True)
     
