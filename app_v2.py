@@ -168,6 +168,9 @@ class StreamlitChatbot:
                 print(f"🔍 Feedback data: {feedback_data}")
                 print("🚀 Connecting to Databricks...")
                 
+                # Import databricks.sql here to ensure it's available
+                from databricks import sql
+                
                 conn = sql.connect(
                     server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
                     http_path=st.secrets["DATABRICKS_HTTP_PATH"],
