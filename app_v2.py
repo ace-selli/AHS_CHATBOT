@@ -12,7 +12,7 @@ try:
     DATABRICKS_AVAILABLE = True
 except ImportError:
     DATABRICKS_AVAILABLE = False
-    st.warning("Databricks SDK not available. Feedback will be stored locally instead of in database.")
+    print("Databricks SDK not available. Feedback will be stored locally instead of in database.")
 
 # Alternative database options
 try:
@@ -343,17 +343,18 @@ class StreamlitChatbot:
         # Input section
         st.markdown("---")
         
-        # Create columns for clear button
-        col1, col2 = st.columns([8, 1])
+        # Create columns for chat input and clear button
+        input_col, clear_col = st.columns([8, 1])
         
-        with col2:
+        with input_col:
+            # Use st.chat_input for built-in Enter key support
+            user_input = st.chat_input(
+                placeholder="Type your message here... (Press Enter to send)",
+                key=f"chat_input_{st.session_state.input_key_counter}"
+            )
+        
+        with clear_col:
             clear_button = st.button("Clear", use_container_width=True)
-        
-        # Use st.chat_input for built-in Enter key support
-        user_input = st.chat_input(
-            placeholder="Type your message here... (Press Enter to send)",
-            key=f"chat_input_{st.session_state.input_key_counter}"
-        )
         
         # Handle button clicks
         if clear_button:
