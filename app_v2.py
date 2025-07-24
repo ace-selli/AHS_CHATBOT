@@ -174,14 +174,14 @@ class StreamlitChatbot:
             background-color: #EEEDE9;
             border-left: 4px solid #1B3139;
             padding: 12px 16px;
-            margin: 15px 0 5px 0; /* Only reduced bottom margin from 25px to 5px */
+            margin: 15px 0 -10px 0; /* Changed bottom margin to negative to pull content up */
             border-radius: 6px;
             font-size: 14px;
             color: #1B3139;
         }
         
         .chat-area {
-            margin-top: 5px; /* Reduced from 10px to 5px */
+            margin-top: -5px; /* Negative margin to pull chat area up closer to info note */
         }
         </style>
         """, unsafe_allow_html=True)
