@@ -183,6 +183,16 @@ class StreamlitChatbot:
         .chat-area {
             margin-top: -5px; /* Negative margin to pull chat area up closer to info note */
         }
+        
+        /* Aggressive targeting of the gap after info note */
+        .info-note + div {
+            margin-top: -20px !important;
+        }
+        
+        /* Target Streamlit's vertical block that comes after info note */
+        div[data-testid="stMarkdown"]:has(.info-note) + div {
+            margin-top: -30px !important;
+        }
         </style>
         """, unsafe_allow_html=True)
     
