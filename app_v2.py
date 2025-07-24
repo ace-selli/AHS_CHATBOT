@@ -296,7 +296,9 @@ class StreamlitChatbot:
                        unsafe_allow_html=True)
             return
         
-        st.markdown('<div class="feedback-container">', unsafe_allow_html=True)
+        # Create unique container ID for this feedback section
+        container_id = f"feedback-{message_index}"
+        st.markdown(f'<div class="feedback-container" id="{container_id}">', unsafe_allow_html=True)
         
         # Check current selection for styling
         selected_feedback = st.session_state.feedback_selection.get(str(message_index))
@@ -316,14 +318,15 @@ class StreamlitChatbot:
                 st.session_state.feedback_selection[str(message_index)] = 'thumbs-down'
                 st.rerun()
         
-        # Add CSS to highlight selected button after rendering
+        # Add CSS to highlight selected button using the unique container ID
         if selected_feedback:
-            button_selector = "1" if selected_feedback == 'thumbs-up' else "2"
+            button_position = "1" if selected_feedback == 'thumbs-up' else "2"
             st.markdown(f"""
             <style>
-            .feedback-container div[data-testid="column"]:nth-child({button_selector}) button {{
+            #{container_id} div[data-testid="column"]:nth-child({button_position}) button {{
                 border: 2px solid #FF3621 !important;
                 background-color: rgba(255, 54, 33, 0.1) !important;
+                box-shadow: 0 0 0 1px #FF3621 !important;
             }}
             </style>
             """, unsafe_allow_html=True)
