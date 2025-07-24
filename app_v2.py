@@ -151,22 +151,6 @@ class StreamlitChatbot:
             margin: 10px 0;
             font-style: italic;
         }
-        
-        /* Sticky bottom input styling */
-        .sticky-input {
-            position: sticky;
-            bottom: 0;
-            background-color: #F9F7F4;
-            padding: 20px 0;
-            border-top: 1px solid #EEEDE9;
-            margin-top: 20px;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-        }
-        
-        /* Add some breathing room for content above sticky input */
-        .content-spacer {
-            height: 20px;
-        }
         </style>
         """, unsafe_allow_html=True)
     
@@ -348,7 +332,7 @@ class StreamlitChatbot:
                    unsafe_allow_html=True)
         st.info("Note: Ask the below rep for handyman job information.")
         
-        # Chat history container in a scrollable area
+        # Chat history container
         chat_container = st.container()
         
         with chat_container:
@@ -356,11 +340,8 @@ class StreamlitChatbot:
             for i, message in enumerate(st.session_state.chat_history):
                 self._render_message(message, i)
         
-        # Add some spacing before the sticky input
-        st.markdown('<div class="content-spacer"></div>', unsafe_allow_html=True)
-        
-        # Input section - make it sticky
-        st.markdown('<div class="sticky-input">', unsafe_allow_html=True)
+        # Input section
+        st.markdown("---")
         
         # Create columns for chat input and clear button
         input_col, clear_col = st.columns([8, 1])
@@ -374,8 +355,6 @@ class StreamlitChatbot:
         
         with clear_col:
             clear_button = st.button("Clear", use_container_width=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
         
         # Handle button clicks
         if clear_button:
