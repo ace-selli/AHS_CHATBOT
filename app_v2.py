@@ -12,7 +12,7 @@ try:
     DATABRICKS_AVAILABLE = True
 except ImportError:
     DATABRICKS_AVAILABLE = False
-    st.warning("Databricks SDK not available. Feedback will be stored locally instead of in database.")
+    print("Databricks SDK not available. Feedback will be stored locally instead of in database.")
 
 # Alternative database options
 try:
@@ -74,6 +74,9 @@ class StreamlitChatbot:
             st.session_state.feedback_comments = {}
         if 'feedback_submitted' not in st.session_state:
             st.session_state.feedback_submitted = set()
+        # Add input text state
+        if 'input_text' not in st.session_state:
+            st.session_state.input_text = ""
     
     def _add_custom_css(self):
         """Add custom CSS styling to match the original design"""
@@ -318,6 +321,8 @@ class StreamlitChatbot:
         st.session_state.feedback_selection = {}
         st.session_state.feedback_comments = {}
         st.session_state.feedback_submitted = set()
+        # Clear input text
+        st.session_state.input_text = ""
         st.rerun()
     
     def render(self):
@@ -346,7 +351,8 @@ class StreamlitChatbot:
                 "Type your message here...",
                 key="user_input",
                 height=80,
-                placeholder="Type your message here..."
+                placeholder="Type your message here...",
+                value=st.session_state.input_text
             )
         
         with send_col:
@@ -365,6 +371,9 @@ class StreamlitChatbot:
                 'role': 'user', 
                 'content': user_input.strip()
             })
+            
+            # Clear input text
+            st.session_state.input_text = ""
             
             # Show typing indicator
             with st.spinner("Thinking..."):
@@ -386,7 +395,7 @@ class StreamlitChatbot:
                         'content': error_message
                     })
             
-            # Clear input and rerun
+            # Rerun to refresh the interface
             st.rerun()
 
 def main():
