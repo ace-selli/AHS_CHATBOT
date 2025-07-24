@@ -165,6 +165,7 @@ class StreamlitChatbot:
         def insert_feedback():
             try:
                 print("🛠️ Storing feedback...")
+                print(f"🔍 Feedback data: {feedback_data}")
                 print("🚀 Connecting to Databricks...")
                 
                 conn = sql.connect(
@@ -174,6 +175,15 @@ class StreamlitChatbot:
                 )
                 
                 cursor = conn.cursor()
+                
+                # Debug: Check if we can connect and see the table
+                print("🔍 Testing connection...")
+                cursor.execute("SELECT 1 as test")
+                result = cursor.fetchone()
+                print(f"✅ Connection test result: {result}")
+                
+                # Insert the feedback
+                print("📝 Inserting feedback...")
                 cursor.execute("""
                     INSERT INTO ai_squad_np.default.handyman_feedback
                     (id, timestamp, message, feedback, comment)
@@ -186,12 +196,19 @@ class StreamlitChatbot:
                     feedback_data['comment']
                 ))
                 
+                # Commit the transaction
+                conn.commit()
+                print("✅ Feedback committed to database")
+                
                 cursor.close()
                 conn.close()
-                print("✅ Feedback saved successfully")
+                print("✅ Database connection closed")
                 
             except Exception as e:
+                import traceback
                 print(f"⚠️ Could not store feedback: {e}")
+                print("🔍 Full traceback:")
+                traceback.print_exc()
         
         # Run in background thread
         threading.Thread(target=insert_feedback).start()
@@ -267,14 +284,16 @@ class StreamlitChatbot:
             # Get feedback selection
             feedback_value = st.session_state.feedback_selection.get(str(message_index), 'none')
             
-            # Prepare feedback data
+            # Prepare feedback data with timezone-aware datetime
             feedback_data = {
                 'id': str(uuid.uuid4()),
-                'timestamp': datetime.datetime.utcnow().isoformat(),
+                'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 'message': str(st.session_state.chat_history),
                 'feedback': feedback_value,
                 'comment': comment or ''
             }
+            
+            print(f"🔍 Submitting feedback: {feedback_data}")
             
             # Save to database
             self._save_feedback_to_database(feedback_data)
