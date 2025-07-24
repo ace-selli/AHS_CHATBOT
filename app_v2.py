@@ -74,9 +74,9 @@ class StreamlitChatbot:
             st.session_state.feedback_comments = {}
         if 'feedback_submitted' not in st.session_state:
             st.session_state.feedback_submitted = set()
-        # Add input text state
-        if 'input_text' not in st.session_state:
-            st.session_state.input_text = ""
+        # Add input key counter to force widget refresh
+        if 'input_key_counter' not in st.session_state:
+            st.session_state.input_key_counter = 0
     
     def _add_custom_css(self):
         """Add custom CSS styling to match the original design"""
@@ -321,8 +321,8 @@ class StreamlitChatbot:
         st.session_state.feedback_selection = {}
         st.session_state.feedback_comments = {}
         st.session_state.feedback_submitted = set()
-        # Clear input text
-        st.session_state.input_text = ""
+        # Increment counter to force input widget to refresh
+        st.session_state.input_key_counter += 1
         st.rerun()
     
     def render(self):
@@ -349,10 +349,9 @@ class StreamlitChatbot:
         with input_col:
             user_input = st.text_area(
                 "Type your message here...",
-                key="user_input",
+                key=f"user_input_{st.session_state.input_key_counter}",
                 height=80,
-                placeholder="Type your message here...",
-                value=st.session_state.input_text
+                placeholder="Type your message here..."
             )
         
         with send_col:
@@ -372,8 +371,8 @@ class StreamlitChatbot:
                 'content': user_input.strip()
             })
             
-            # Clear input text
-            st.session_state.input_text = ""
+            # Increment counter to clear input field
+            st.session_state.input_key_counter += 1
             
             # Show typing indicator
             with st.spinner("Thinking..."):
