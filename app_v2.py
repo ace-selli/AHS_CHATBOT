@@ -298,29 +298,23 @@ class StreamlitChatbot:
         
         st.markdown('<div class="feedback-container">', unsafe_allow_html=True)
         
-        # Check current selection
-        selected_feedback = st.session_state.feedback_selection.get(str(message_index))
-        
         # Feedback buttons
         col1, col2, col3 = st.columns([1, 1, 6])
         
         with col1:
             thumbs_up_key = f"thumbs_up_{message_index}"
-            # Use type="primary" if selected to show visual difference
-            button_type = "primary" if selected_feedback == 'thumbs-up' else "secondary"
-            if st.button("👍", key=thumbs_up_key, help="Good response", type=button_type):
+            if st.button("👍", key=thumbs_up_key, help="Good response"):
                 st.session_state.feedback_selection[str(message_index)] = 'thumbs-up'
                 st.rerun()
         
         with col2:
             thumbs_down_key = f"thumbs_down_{message_index}"
-            # Use type="primary" if selected to show visual difference
-            button_type = "primary" if selected_feedback == 'thumbs-down' else "secondary"
-            if st.button("👎", key=thumbs_down_key, help="Poor response", type=button_type):
+            if st.button("👎", key=thumbs_down_key, help="Poor response"):
                 st.session_state.feedback_selection[str(message_index)] = 'thumbs-down'
                 st.rerun()
         
         # Show form ONLY if a thumb button was pressed
+        selected_feedback = st.session_state.feedback_selection.get(str(message_index))
         if selected_feedback:
             # Comment box - only show after selection
             comment_key = f"comment_{message_index}"
