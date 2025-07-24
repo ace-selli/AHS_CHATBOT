@@ -246,9 +246,11 @@ class StreamlitChatbot:
             </div>
             """, unsafe_allow_html=True)
         else:  # assistant message
+            # Convert newlines to HTML line breaks for proper formatting
+            formatted_content = message['content'].replace('\n', '<br>')
             st.markdown(f"""
             <div class="chat-message assistant-message">
-                {message['content']}
+                {formatted_content}
             </div>
             """, unsafe_allow_html=True)
             
