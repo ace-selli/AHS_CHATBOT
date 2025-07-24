@@ -27,7 +27,7 @@ def query_endpoint(endpoint_name, messages, max_tokens=128):
     try:
         import requests
         
-        url = f"https://{st.secrets['DATABRICKS_SERVER_HOSTNAME']}/serving-endpoints/{endpoint_name}/invocations"
+        url = st.secrets['ENDPOINT_URL']
         
         headers = {
             "Authorization": f"Bearer {st.secrets['DATABRICKS_PAT']}",
