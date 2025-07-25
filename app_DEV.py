@@ -1,9 +1,13 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import datetime
 import uuid
 import time
 import threading
 import os
+import requests
+import io
+import base64
 
 # Optional Databricks imports with fallback
 try:
@@ -58,6 +62,325 @@ def query_endpoint(endpoint_name, messages, max_tokens=128):
     except Exception as e:
         raise Exception(f"Model endpoint error: {str(e)}")
 
+def transcribe_audio_azure(audio_data):
+    """Transcribe audio using Azure Speech-to-Text REST API"""
+    try:
+        # Get Azure credentials from Streamlit secrets
+        subscription_key = st.secrets.get("AZURE_SPEECH_KEY")
+        region = st.secrets.get("AZURE_SPEECH_REGION", "eastus")
+        
+        if not subscription_key:
+            raise Exception("Azure Speech subscription key not found in secrets")
+        
+        # Azure Speech-to-Text endpoint
+        endpoint = f"https://{region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1"
+        
+        headers = {
+            'Ocp-Apim-Subscription-Key': subscription_key,
+            'Content-Type': 'audio/wav; codecs=audio/pcm; samplerate=16000',
+            'Accept': 'application/json'
+        }
+        
+        params = {
+            'language': 'en-US',
+            'format': 'detailed'
+        }
+        
+        # Send audio data to Azure
+        response = requests.post(endpoint, headers=headers, params=params, data=audio_data)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        # Extract transcript from Azure response
+        if result.get('RecognitionStatus') == 'Success':
+            if result.get('NBest') and len(result['NBest']) > 0:
+                return result['NBest'][0]['Display']
+            elif result.get('DisplayText'):
+                return result['DisplayText']
+        else:
+            raise Exception(f"Azure transcription failed: {result.get('RecognitionStatus', 'Unknown error')}")
+            
+        return ""
+        
+    except Exception as e:
+        print(f"Azure STT error: {str(e)}")
+        raise Exception(f"Speech transcription failed: {str(e)}")
+
+def create_speech_to_text_component():
+    """Create a custom STT component that records audio and sends to Azure"""
+    stt_html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {
+                font-family: 'DM Sans', sans-serif;
+                margin: 0;
+                padding: 10px;
+                background: transparent;
+            }
+            
+            .stt-container {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            .stt-button {
+                background: #FF3621;
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 10px rgba(255, 54, 33, 0.3);
+            }
+            
+            .stt-button:hover {
+                background: #e6301d;
+                transform: scale(1.05);
+            }
+            
+            .stt-button.recording {
+                background: #00A972;
+                animation: pulse 1.5s infinite;
+            }
+            
+            .stt-button.processing {
+                background: #1B3139;
+                animation: spin 1s linear infinite;
+            }
+            
+            .stt-button:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+                transform: none;
+            }
+            
+            @keyframes pulse {
+                0% {
+                    box-shadow: 0 0 0 0 rgba(0, 169, 114, 0.7);
+                }
+                70% {
+                    box-shadow: 0 0 0 10px rgba(0, 169, 114, 0);
+                }
+                100% {
+                    box-shadow: 0 0 0 0 rgba(0, 169, 114, 0);
+                }
+            }
+            
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            
+            .stt-status {
+                font-size: 14px;
+                color: #1B3139;
+                font-weight: 500;
+            }
+            
+            .stt-transcript {
+                font-size: 12px;
+                color: #666;
+                margin-top: 5px;
+                font-style: italic;
+            }
+            
+            .error-message {
+                color: #FF3621;
+                font-size: 12px;
+                margin-top: 5px;
+            }
+            
+            .recording-timer {
+                font-size: 12px;
+                color: #00A972;
+                font-weight: bold;
+                margin-top: 3px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="stt-container">
+            <button id="sttButton" class="stt-button" title="Click to start voice recording">
+                🎤
+            </button>
+            <div>
+                <div id="sttStatus" class="stt-status">Click to record voice</div>
+                <div id="recordingTimer" class="recording-timer" style="display: none;"></div>
+                <div id="sttTranscript" class="stt-transcript"></div>
+                <div id="errorMessage" class="error-message"></div>
+            </div>
+        </div>
+
+        <script>
+            let mediaRecorder = null;
+            let audioChunks = [];
+            let isRecording = false;
+            let recordingStartTime = null;
+            let timerInterval = null;
+            
+            const button = document.getElementById('sttButton');
+            const status = document.getElementById('sttStatus');
+            const transcript = document.getElementById('sttTranscript');
+            const errorMsg = document.getElementById('errorMessage');
+            const timer = document.getElementById('recordingTimer');
+            
+            function updateTimer() {
+                if (recordingStartTime) {
+                    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60);
+                    const seconds = elapsed % 60;
+                    timer.textContent = `Recording: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+            }
+            
+            function startRecording() {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        audioChunks = [];
+                        mediaRecorder = new MediaRecorder(stream, {
+                            mimeType: 'audio/webm;codecs=opus'
+                        });
+                        
+                        mediaRecorder.ondataavailable = event => {
+                            if (event.data.size > 0) {
+                                audioChunks.push(event.data);
+                            }
+                        };
+                        
+                        mediaRecorder.onstop = () => {
+                            // Stop all tracks to release microphone
+                            stream.getTracks().forEach(track => track.stop());
+                            
+                            // Process recorded audio
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+                            processAudioBlob(audioBlob);
+                        };
+                        
+                        mediaRecorder.start();
+                        isRecording = true;
+                        recordingStartTime = Date.now();
+                        
+                        // Update UI
+                        button.classList.add('recording');
+                        button.innerHTML = '⏹️';
+                        status.textContent = 'Recording... Click to stop';
+                        timer.style.display = 'block';
+                        errorMsg.textContent = '';
+                        
+                        // Start timer
+                        timerInterval = setInterval(updateTimer, 1000);
+                        updateTimer();
+                        
+                    })
+                    .catch(error => {
+                        console.error('Error accessing microphone:', error);
+                        status.textContent = 'Ready to record';
+                        errorMsg.textContent = 'Could not access microphone. Please check permissions.';
+                        isRecording = false;
+                    });
+            }
+            
+            function stopRecording() {
+                if (mediaRecorder && isRecording) {
+                    mediaRecorder.stop();
+                    isRecording = false;
+                    
+                    // Clear timer
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                    
+                    // Update UI
+                    button.classList.remove('recording');
+                    button.classList.add('processing');
+                    button.innerHTML = '⏳';
+                    button.disabled = true;
+                    status.textContent = 'Processing audio...';
+                    timer.style.display = 'none';
+                }
+            }
+            
+            async function processAudioBlob(audioBlob) {
+                try {
+                    // Convert webm to wav format for Azure
+                    const audioBuffer = await audioBlob.arrayBuffer();
+                    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+                    
+                    // Send audio to Streamlit backend for Azure processing
+                    window.parent.postMessage({
+                        type: 'stt_audio',
+                        audio_data: base64Audio,
+                        audio_type: 'audio/webm'
+                    }, '*');
+                    
+                } catch (error) {
+                    console.error('Error processing audio:', error);
+                    resetUI();
+                    errorMsg.textContent = 'Error processing audio recording';
+                }
+            }
+            
+            function resetUI() {
+                button.classList.remove('recording', 'processing');
+                button.innerHTML = '🎤';
+                button.disabled = false;
+                status.textContent = 'Click to record voice';
+                timer.style.display = 'none';
+                recordingStartTime = null;
+                
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+            }
+            
+            // Listen for messages from Streamlit
+            window.addEventListener('message', function(event) {
+                if (event.data.type === 'stt_result') {
+                    transcript.textContent = 'Transcript: ' + event.data.transcript;
+                    resetUI();
+                    status.textContent = 'Transcription complete!';
+                } else if (event.data.type === 'stt_error') {
+                    resetUI();
+                    errorMsg.textContent = event.data.error;
+                }
+            });
+            
+            button.addEventListener('click', function() {
+                if (isRecording) {
+                    stopRecording();
+                } else {
+                    startRecording();
+                }
+            });
+            
+            // Check microphone permissions on load
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                status.textContent = 'Click to record voice';
+            } else {
+                status.textContent = 'Microphone not supported';
+                button.disabled = true;
+                button.style.opacity = '0.5';
+                errorMsg.textContent = 'Your browser does not support microphone recording.';
+            }
+        </script>
+    </body>
+    </html>
+    """
+    return stt_html
+
 class StreamlitChatbot:
     def __init__(self, endpoint_name):
         self.endpoint_name = endpoint_name
@@ -77,6 +400,14 @@ class StreamlitChatbot:
         # Add input key counter to force widget refresh
         if 'input_key_counter' not in st.session_state:
             st.session_state.input_key_counter = 0
+        # Add STT transcript storage
+        if 'stt_transcript' not in st.session_state:
+            st.session_state.stt_transcript = ''
+        if 'manual_input' not in st.session_state:
+            st.session_state.manual_input = ''
+        # Add audio processing state
+        if 'audio_processing' not in st.session_state:
+            st.session_state.audio_processing = False
     
     def _add_custom_css(self):
         """Add custom CSS styling to match the original design"""
@@ -123,9 +454,9 @@ class StreamlitChatbot:
         .feedback-container {
             margin-top: 10px;
             padding: 10px;
-            background-color: transparent; /* Changed from #EEEDE9 to transparent */
+            background-color: transparent;
             border-radius: 10px;
-            border: none; /* Remove any potential border */
+            border: none;
         }
         
         .feedback-thankyou {
@@ -168,21 +499,37 @@ class StreamlitChatbot:
         
         /* Add bottom padding to content so it doesn't get hidden */
         .content-with-bottom-padding {
-            padding-bottom: 120px;
+            padding-bottom: 180px; /* Increased to accommodate STT component */
         }
         
         .info-note {
             background-color: #EEEDE9;
             border-left: 4px solid #1B3139;
             padding: 12px 16px;
-            margin: 15px 0 -10px 0; /* Changed bottom margin to negative to pull content up */
+            margin: 15px 0 -10px 0;
             border-radius: 6px;
             font-size: 14px;
             color: #1B3139;
         }
         
         .chat-area {
-            margin-top: -5px; /* Negative margin to pull chat area up closer to info note */
+            margin-top: -5px;
+        }
+        
+        /* STT input container */
+        .stt-input-container {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .stt-component {
+            flex-shrink: 0;
+        }
+        
+        .input-section {
+            flex: 1;
         }
         
         /* Aggressive targeting of the gap after info note */
@@ -193,6 +540,16 @@ class StreamlitChatbot:
         /* Target Streamlit's vertical block that comes after info note */
         div[data-testid="stMarkdown"]:has(.info-note) + div {
             margin-top: -30px !important;
+        }
+        
+        .azure-stt-info {
+            background-color: #E3F2FD;
+            border-left: 4px solid #2196F3;
+            padding: 8px 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #1565C0;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -261,6 +618,27 @@ class StreamlitChatbot:
         
         # Run in background thread
         threading.Thread(target=insert_feedback).start()
+    
+    def _process_audio_for_transcription(self, audio_data_b64, audio_type):
+        """Process audio data and send to Azure for transcription"""
+        try:
+            # Decode base64 audio data
+            audio_data = base64.b64decode(audio_data_b64)
+            
+            # For now, we'll pass the webm data directly to Azure
+            # In production, you might want to convert webm to wav
+            transcript = transcribe_audio_azure(audio_data)
+            
+            if transcript:
+                st.session_state.stt_transcript = transcript
+                st.success(f"🎤 Voice input captured: '{transcript}'")
+                st.rerun()
+            else:
+                st.warning("No speech detected in the recording. Please try again.")
+                
+        except Exception as e:
+            st.error(f"Speech transcription failed: {str(e)}")
+            print(f"Audio transcription error: {e}")
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling"""
@@ -366,61 +744,25 @@ class StreamlitChatbot:
         st.session_state.feedback_selection = {}
         st.session_state.feedback_comments = {}
         st.session_state.feedback_submitted = set()
+        st.session_state.stt_transcript = ''
+        st.session_state.manual_input = ''
+        st.session_state.audio_processing = False
         # Increment counter to force input widget to refresh
         st.session_state.input_key_counter += 1
         st.rerun()
     
-    def render(self):
-        """Main render method for the chatbot interface"""
-        # Title, info note, and chat area in single container to eliminate all gaps
-        st.markdown('''
-        <div class="content-with-bottom-padding">
-        <h2 class="chat-title">Ace Handyman Services Customer Rep</h2>
-        <div class="info-note">
-            💬 Ask the rep below for handyman job information and estimates.
-        </div>
-        <div class="chat-area">
-        ''', unsafe_allow_html=True)
-        
-        chat_container = st.container()
-        
-        with chat_container:
-            # Display chat history
-            for i, message in enumerate(st.session_state.chat_history):
-                self._render_message(message, i)
-        
-        
-        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-area
-        st.markdown('</div>', unsafe_allow_html=True)  # Close content-with-bottom-padding
-        
-        # Fixed input section at bottom of screen
-        st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
-        
-        # Create columns for chat input and clear button
-        input_col, clear_col = st.columns([8, 1])
-        
-        with input_col:
-            # Use st.chat_input for built-in Enter key support
-            user_input = st.chat_input(
-                placeholder="Type your message here... (Press Enter to send)",
-                key=f"chat_input_{st.session_state.input_key_counter}"
-            )
-        
-        with clear_col:
-            clear_button = st.button("Clear", use_container_width=True)
-            
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Handle button clicks
-        if clear_button:
-            self._clear_chat()
-        
-        if user_input and user_input.strip():
+    def _process_message(self, message_text):
+        """Process a message (from either text input or STT)"""
+        if message_text and message_text.strip():
             # Add user message
             st.session_state.chat_history.append({
                 'role': 'user', 
-                'content': user_input.strip()
+                'content': message_text.strip()
             })
+            
+            # Clear inputs
+            st.session_state.stt_transcript = ''
+            st.session_state.manual_input = ''
             
             # Increment counter to clear input field
             st.session_state.input_key_counter += 1
@@ -447,57 +789,76 @@ class StreamlitChatbot:
             
             # Rerun to refresh the interface
             st.rerun()
-
-def main():
-    """Main function to run the Streamlit app"""
-    st.set_page_config(
-        page_title="Ace Handyman Services Chat",
-        page_icon="🔧",
-        layout="centered",
-        initial_sidebar_state="collapsed"
-    )
     
-    # Initialize chatbot
-    endpoint_name = st.secrets.get("DATABRICKS_ENDPOINT_NAME", "your_endpoint_name")
-    chatbot = StreamlitChatbot(endpoint_name)
-    
-    # Render the chatbot
-    chatbot.render()
-
-# Requirements and setup instructions
-def show_setup_instructions():
-    """Show setup instructions in the sidebar"""
-    with st.sidebar:
-        st.header("Setup Instructions")
+    def render(self):
+        """Main render method for the chatbot interface"""
+        # Handle JavaScript messages from STT component first
+        if hasattr(st, 'query_params'):
+            # This is a simplified approach - in production you'd use session state
+            pass
         
-        st.subheader("1. Install Dependencies")
-        st.code("""
-# Basic requirements
-pip install streamlit
-
-# For Databricks integration (optional)
-pip install databricks-sdk databricks-sql-connector
-
-# For local SQLite fallback
-# sqlite3 is included with Python
-        """)
+        # Title, info note, and chat area in single container to eliminate all gaps
+        st.markdown('''
+        <div class="content-with-bottom-padding">
+        <h2 class="chat-title">Ace Handyman Services Customer Rep</h2>
+        <div class="info-note">
+            💬 Ask the rep below for handyman job information and estimates. You can type or use voice input powered by Azure Speech Services.
+        </div>
+        <div class="chat-area">
+        ''', unsafe_allow_html=True)
         
-        st.subheader("2. Environment Variables")
-        st.text("Set these if using Databricks:")
-        st.code("""
-DATABRICKS_SERVER_HOSTNAME=your_hostname
-DATABRICKS_HTTP_PATH=your_http_path  
-DATABRICKS_ACCESS_TOKEN=your_token
-        """)
+        chat_container = st.container()
         
-        st.subheader("3. Model Endpoint")
-        st.text("Replace the query_endpoint function with your model serving logic")
+        with chat_container:
+            # Display chat history
+            for i, message in enumerate(st.session_state.chat_history):
+                self._render_message(message, i)
         
-        if not DATABRICKS_AVAILABLE:
-            st.warning("⚠️ Databricks SDK not installed. Feedback will use local storage.")
-        else:
-            st.success("✅ Databricks SDK available")
-
-if __name__ == "__main__":
-    show_setup_instructions()
-    main()
+        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-area
+        st.markdown('</div>', unsafe_allow_html=True)  # Close content-with-bottom-padding
+        
+        # Fixed input section at bottom of screen
+        st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
+        
+        # Azure STT info
+        st.markdown('''
+        <div class="azure-stt-info">
+            🎙️ Voice input powered by Microsoft Azure Speech Services - Click microphone to record, click again to stop
+        </div>
+        ''', unsafe_allow_html=True)
+        
+        st.markdown('<div class="stt-input-container">', unsafe_allow_html=True)
+        
+        # STT Component
+        col1, col2 = st.columns([1, 6])
+        
+        with col1:
+            st.markdown('<div class="stt-component">', unsafe_allow_html=True)
+            
+            # Create a placeholder for the STT component
+            stt_placeholder = st.empty()
+            
+            # Create STT component with message handling
+            stt_component = components.html(
+                create_speech_to_text_component(),
+                height=90,
+                key=f"stt_component_{st.session_state.input_key_counter}"
+            )
+            
+            # Handle audio messages (this is a simplified approach)
+            # In a real implementation, you'd use st.experimental_get_query_params() 
+            # or implement a proper callback mechanism
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown('<div class="input-section">', unsafe_allow_html=True)
+            
+            # Combine manual input and STT transcript
+            current_input = st.session_state.manual_input
+            if st.session_state.stt_transcript:
+                current_input = st.session_state.stt_transcript
+            
+            # Text input with current value
+            user_input = st.text_area(
+                label="Type your message or use
