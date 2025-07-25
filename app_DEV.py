@@ -861,4 +861,148 @@ class StreamlitChatbot:
             
             # Text input with current value
             user_input = st.text_area(
-                label="Type your message or use
+                label="Type your message or use voice input above:",
+                value=current_input,
+                height=60,
+                placeholder="Type your message here or click the microphone to speak...",
+                key=f"manual_input_{st.session_state.input_key_counter}",
+                label_visibility="collapsed"
+            )
+            
+            # Update session state with manual input
+            if user_input != current_input:
+                st.session_state.manual_input = user_input
+                st.session_state.stt_transcript = ''  # Clear STT when manually typing
+            
+            # Buttons row
+            button_col1, button_col2, button_col3 = st.columns([2, 1, 1])
+            
+            with button_col1:
+                send_button = st.button("Send Message", type="primary", use_container_width=True)
+            
+            with button_col2:
+                clear_input_button = st.button("Clear", use_container_width=True)
+            
+            with button_col3:
+                clear_chat_button = st.button("Clear Chat", use_container_width=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)  # Close stt-input-container
+        st.markdown('</div>', unsafe_allow_html=True)  # Close fixed-bottom-input
+        
+        # Handle button clicks
+        if clear_chat_button:
+            self._clear_chat()
+        
+        if clear_input_button:
+            st.session_state.manual_input = ''
+            st.session_state.stt_transcript = ''
+            st.session_state.input_key_counter += 1
+            st.rerun()
+        
+        if send_button:
+            message_to_send = user_input or st.session_state.stt_transcript
+            if message_to_send and message_to_send.strip():
+                self._process_message(message_to_send)
+
+def main():
+    """Main function to run the Streamlit app"""
+    st.set_page_config(
+        page_title="Ace Handyman Services Chat",
+        page_icon="🔧",
+        layout="centered",
+        initial_sidebar_state="collapsed"
+    )
+    
+    # Check for required Azure credentials
+    if not st.secrets.get("AZURE_SPEECH_KEY"):
+        st.error("❌ Azure Speech Services not configured. Please add AZURE_SPEECH_KEY to your secrets.")
+        st.info("Add the following to your .streamlit/secrets.toml file:")
+        st.code("""
+[default]
+AZURE_SPEECH_KEY = "your_azure_speech_key_here"
+AZURE_SPEECH_REGION = "eastus"  # or your Azure region
+        """)
+        st.stop()
+    
+    # Initialize chatbot
+    endpoint_name = st.secrets.get("DATABRICKS_ENDPOINT_NAME", "your_endpoint_name")
+    chatbot = StreamlitChatbot(endpoint_name)
+    
+    # Render the chatbot
+    chatbot.render()
+
+# Requirements and setup instructions
+def show_setup_instructions():
+    """Show setup instructions in the sidebar"""
+    with st.sidebar:
+        st.header("Setup Instructions")
+        
+        st.subheader("1. Install Dependencies")
+        st.code("""
+# Basic requirements
+pip install streamlit requests
+
+# For Databricks integration (optional)
+pip install databricks-sdk databricks-sql-connector
+
+# For local SQLite fallback
+# sqlite3 is included with Python
+        """)
+        
+        st.subheader("2. Azure Speech Services")
+        st.info("""
+        🔑 Required Azure Setup:
+        1. Create an Azure Speech Services resource
+        2. Get your subscription key and region
+        3. Add to Streamlit secrets
+        """)
+        
+        st.subheader("3. Environment Variables")
+        st.text("Required for Azure STT:")
+        st.code("""
+# .streamlit/secrets.toml
+[default]
+AZURE_SPEECH_KEY = "your_azure_speech_key"
+AZURE_SPEECH_REGION = "eastus"
+
+# Optional Databricks settings
+DATABRICKS_SERVER_HOSTNAME = "your_hostname"
+DATABRICKS_HTTP_PATH = "your_http_path"  
+DATABRICKS_PAT = "your_token"
+DATABRICKS_ENDPOINT_NAME = "your_endpoint"
+ENDPOINT_URL = "your_model_endpoint"
+        """)
+        
+        st.subheader("4. Azure Speech API Features")
+        st.success("""
+        ✅ Benefits of Azure Speech API:
+        • Higher accuracy than browser STT
+        • Better noise handling
+        • Consistent results across browsers
+        • Support for multiple languages
+        • Real-time processing
+        • Enterprise-grade security
+        """)
+        
+        st.subheader("5. Model Endpoint")
+        st.text("Replace the query_endpoint function with your model serving logic")
+        
+        # Show Azure configuration status
+        azure_key = st.secrets.get("AZURE_SPEECH_KEY")
+        azure_region = st.secrets.get("AZURE_SPEECH_REGION", "eastus")
+        
+        if azure_key:
+            st.success(f"✅ Azure Speech configured (Region: {azure_region})")
+        else:
+            st.error("❌ Azure Speech not configured")
+        
+        if not DATABRICKS_AVAILABLE:
+            st.warning("⚠️ Databricks SDK not installed. Feedback will use local storage.")
+        else:
+            st.success("✅ Databricks SDK available")
+
+if __name__ == "__main__":
+    show_setup_instructions()
+    main()
