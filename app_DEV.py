@@ -504,6 +504,7 @@ class StreamlitChatbot:
         st.rerun()
     
     def render(self):
+        print("🐛 DEBUG: Using new version with _store_conversation_sync")
         """Main render method for the chatbot interface"""
         # Title, info note, and chat area in single container to eliminate all gaps
         st.markdown('''
@@ -571,7 +572,11 @@ class StreamlitChatbot:
                     })
                     
                     # Save/update conversation to database after each assistant response
-                    self._save_conversation_to_database()
+                    try:
+                        self._store_conversation_sync()
+                    except Exception as conv_error:
+                        print(f"Error saving conversation: {conv_error}")
+                        # Don't let conversation saving errors break the app
                     
                 except Exception as e:
                     # Add error message
@@ -582,7 +587,11 @@ class StreamlitChatbot:
                     })
                     
                     # Still save conversation even with errors
-                    self._save_conversation_to_database()
+                    try:
+                        self._store_conversation_sync()
+                    except Exception as conv_error:
+                        print(f"Error saving conversation: {conv_error}")
+                        # Don't let conversation saving errors break the app
             
             # Rerun to refresh the interface
             st.rerun()
