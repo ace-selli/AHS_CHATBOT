@@ -237,20 +237,26 @@ class StreamlitChatbot:
     
     def _save_conversation_to_database(self):
         """Save/update the entire conversation to database"""
-        def upsert_conversation():
+        # Get data from session state BEFORE starting the thread
+        try:
+            conversation_id = st.session_state.conversation_id
+            chat_history = st.session_state.chat_history.copy()  # Make a copy
+            user_email = self._get_user_email()
+        except Exception as e:
+            print(f"Error accessing session state: {e}")
+            return
+        
+        def upsert_conversation(conv_id, history, email):
             try:
                 print("🛠️ Storing conversation...")
                 
-                # Get user email
-                user_email = self._get_user_email()
-                
-                # Prepare conversation data
+                # Prepare conversation data using passed parameters
                 conversation_data = {
-                    'id': st.session_state.conversation_id,
+                    'id': conv_id,
                     'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                    'message': str(st.session_state.chat_history),
+                    'message': str(history),
                     'feedback': 'conversation_log',  # Special marker to distinguish from feedback
-                    'comment': user_email  # Store email in comment field as requested
+                    'comment': email  # Store email in comment field as requested
                 }
                 
                 print(f"🔍 Conversation data: {conversation_data}")
