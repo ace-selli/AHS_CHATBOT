@@ -203,14 +203,25 @@ class StreamlitChatbot:
     def _get_user_email(self):
         """Get the current user's email from Streamlit"""
         try:
-            # Try to get user info from Streamlit's user_info
-            if hasattr(st, 'user') and st.user:
-                return st.user.email
-            # Fallback to experimental user info
-            elif hasattr(st, 'experimental_user') and st.experimental_user:
-                return st.experimental_user.email
-            else:
-                return "unknown_user@example.com"
+            # Check if we're in Streamlit Cloud and user info is available
+            if hasattr(st, 'context') and hasattr(st.context, 'headers'):
+                # Try to get user from headers (Streamlit Cloud)
+                headers = st.context.headers
+                if headers and 'Streamlit-User' in headers:
+                    return headers['Streamlit-User']
+            
+            # Try experimental user (if available)
+            try:
+                import streamlit.runtime.scriptrunner as sr
+                ctx = sr.get_script_run_ctx()
+                if ctx and hasattr(ctx, 'user_info') and ctx.user_info:
+                    return ctx.user_info.get('email', 'unknown_user@example.com')
+            except:
+                pass
+                
+            # Default fallback
+            return "unknown_user@example.com"
+            
         except Exception as e:
             print(f"Could not get user email: {e}")
             return "unknown_user@example.com"
@@ -244,6 +255,16 @@ class StreamlitChatbot:
                 
                 print(f"🔍 Conversation data: {conversation_data}")
                 print("🚀 Connecting to Databricks...")
+                
+                # Only try to import if Databricks is available
+                if not DATABRICKS_AVAILABLE:
+                    print("⚠️ Databricks not available, skipping conversation storage")
+                    return
+                
+                # Only try to import if Databricks is available
+                if not DATABRICKS_AVAILABLE:
+                    print("⚠️ Databricks not available, skipping feedback storage")
+                    return
                 
                 # Import databricks.sql here to ensure it's available
                 from databricks import sql
