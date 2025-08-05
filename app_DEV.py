@@ -289,7 +289,7 @@ class StreamlitChatbot:
                         timestamp = ?, 
                         message = ?
                     WHEN NOT MATCHED THEN INSERT (id, timestamp, message, feedback, comment)
-                    VALUES (?, ?, ?, ?, '')
+                    VALUES (?, ?, ?, ?, ?)
                 """, (
                     st.session_state.conversation_log_id,
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -297,7 +297,8 @@ class StreamlitChatbot:
                     st.session_state.conversation_log_id,
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     str(chat_history),
-                    "Conversation_Log"
+                    "Conversation_Log",
+                    ""
                 ))
     
                 conn.commit()
