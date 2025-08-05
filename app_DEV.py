@@ -213,12 +213,24 @@ class StreamlitChatbot:
         """Save feedback to database - simple version"""
         def insert_feedback():
             try:
+                # Skip if Databricks is not available
+                if not DATABRICKS_AVAILABLE:
+                    print("⚠️ Databricks not available, skipping feedback storage")
+                    return
+                    
                 print("🛠️ Storing feedback...")
                 print(f"🔍 Feedback data: {feedback_data}")
                 print("🚀 Connecting to Databricks...")
                 
                 # Import databricks.sql here to ensure it's available
                 from databricks import sql
+                
+                # Check if all required secrets are available
+                required_secrets = ["DATABRICKS_SERVER_HOSTNAME", "DATABRICKS_HTTP_PATH", "DATABRICKS_PAT"]
+                for secret in required_secrets:
+                    if secret not in st.secrets:
+                        print(f"⚠️ Missing secret: {secret}, skipping feedback storage")
+                        return
                 
                 conn = sql.connect(
                     server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
@@ -262,19 +274,32 @@ class StreamlitChatbot:
                 print("🔍 Full traceback:")
                 traceback.print_exc()
         
-        # Run in background thread
-        threading.Thread(target=insert_feedback).start()
+        # Run in background thread with daemon=True to prevent blocking
+        thread = threading.Thread(target=insert_feedback, daemon=True)
+        thread.start()
     
     def _save_conversation_to_database(self, conversation_data):
-        """Save/update conversation to database - overwrites existing conversation"""
+        """Save/update conversation to database using existing table structure"""
         def upsert_conversation():
             try:
+                # Skip if Databricks is not available
+                if not DATABRICKS_AVAILABLE:
+                    print("⚠️ Databricks not available, skipping conversation storage")
+                    return
+                    
                 print("🛠️ Storing conversation...")
                 print(f"🔍 Conversation ID: {conversation_data['conversation_id']}")
                 print("🚀 Connecting to Databricks...")
                 
                 # Import databricks.sql here to ensure it's available
                 from databricks import sql
+                
+                # Check if all required secrets are available
+                required_secrets = ["DATABRICKS_SERVER_HOSTNAME", "DATABRICKS_HTTP_PATH", "DATABRICKS_PAT"]
+                for secret in required_secrets:
+                    if secret not in st.secrets:
+                        print(f"⚠️ Missing secret: {secret}, skipping conversation storage")
+                        return
                 
                 conn = sql.connect(
                     server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
@@ -284,47 +309,31 @@ class StreamlitChatbot:
                 
                 cursor = conn.cursor()
                 
-                # Check if conversation already exists
-                print("🔍 Checking if conversation exists...")
+                # Delete any existing conversation logs for this conversation
+                # We'll identify them by the comment field containing the conversation_id
+                print("🗑️ Deleting existing conversation records...")
                 cursor.execute("""
-                    SELECT conversation_id FROM ai_squad_np.default.handyman_feedback 
-                    WHERE conversation_id = ?
-                """, (conversation_data['conversation_id'],))
+                    DELETE FROM ai_squad_np.default.handyman_feedback 
+                    WHERE feedback = 'conversation_log' 
+                    AND comment LIKE ?
+                """, (f'%conversation_id:{conversation_data["conversation_id"]}%',))
                 
-                existing = cursor.fetchone()
+                deleted_count = cursor.rowcount
+                print(f"🗑️ Deleted {deleted_count} existing conversation records")
                 
-                if existing:
-                    # Update existing conversation
-                    print("📝 Updating existing conversation...")
-                    cursor.execute("""
-                        UPDATE ai_squad_np.default.handyman_feedback
-                        SET timestamp = ?, 
-                            message = ?, 
-                            feedback = ?, 
-                            comment = ?
-                        WHERE conversation_id = ?
-                    """, (
-                        conversation_data['timestamp'],
-                        conversation_data['message'],
-                        conversation_data['feedback'],
-                        conversation_data['comment'],
-                        conversation_data['conversation_id']
-                    ))
-                else:
-                    # Insert new conversation
-                    print("📝 Inserting new conversation...")
-                    cursor.execute("""
-                        INSERT INTO ai_squad_np.default.handyman_feedback
-                        (id, conversation_id, timestamp, message, feedback, comment)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    """, (
-                        conversation_data['id'],
-                        conversation_data['conversation_id'],
-                        conversation_data['timestamp'],
-                        conversation_data['message'],
-                        conversation_data['feedback'],
-                        conversation_data['comment']
-                    ))
+                # Insert the new conversation record using existing table structure
+                print("📝 Inserting new conversation...")
+                cursor.execute("""
+                    INSERT INTO ai_squad_np.default.handyman_feedback
+                    (id, timestamp, message, feedback, comment)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    conversation_data['id'],
+                    conversation_data['timestamp'],
+                    conversation_data['message'],
+                    conversation_data['feedback'],
+                    conversation_data['comment']
+                ))
                 
                 # Commit the transaction
                 conn.commit()
@@ -340,20 +349,33 @@ class StreamlitChatbot:
                 print("🔍 Full traceback:")
                 traceback.print_exc()
         
-        # Run in background thread
-        threading.Thread(target=upsert_conversation).start()
+        # Run in background thread with daemon=True to prevent blocking
+        thread = threading.Thread(target=upsert_conversation, daemon=True)
+        thread.start()
     
     def _store_conversation_after_response(self):
         """Store the entire conversation after receiving a bot response"""
         try:
+            # Only store if we have Databricks available and secrets configured
+            if not DATABRICKS_AVAILABLE:
+                print("⚠️ Databricks not available, skipping conversation storage")
+                return
+                
+            # Check if required secrets exist
+            required_secrets = ["DATABRICKS_SERVER_HOSTNAME", "DATABRICKS_HTTP_PATH", "DATABRICKS_PAT"]
+            missing_secrets = [s for s in required_secrets if s not in st.secrets]
+            if missing_secrets:
+                print(f"⚠️ Missing secrets {missing_secrets}, skipping conversation storage")
+                return
+            
             # Prepare conversation data
             conversation_data = {
-                'id': str(uuid.uuid4()),  # New ID for each update, but same conversation_id
-                'conversation_id': st.session_state.conversation_id,
+                'id': str(uuid.uuid4()),  # New ID for each update
+                'conversation_id': st.session_state.conversation_id,  # Keep for internal tracking
                 'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 'message': str(st.session_state.chat_history),  # Store entire conversation
                 'feedback': 'conversation_log',  # Special marker to distinguish from user feedback
-                'comment': f'Conversation with {len(st.session_state.chat_history)} messages'
+                'comment': f'conversation_id:{st.session_state.conversation_id} | {len(st.session_state.chat_history)} messages'
             }
             
             print(f"🔍 Storing conversation: {st.session_state.conversation_id}")
@@ -363,6 +385,7 @@ class StreamlitChatbot:
             
         except Exception as e:
             print(f"Conversation storage error: {e}")
+            # Don't raise the exception - we don't want to break the chat flow
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling"""
@@ -541,6 +564,8 @@ class StreamlitChatbot:
                         'content': assistant_response
                     })
                     
+                    print(f"🤖 Assistant response received, chat history length: {len(st.session_state.chat_history)}")
+                    
                     # Store conversation after receiving response
                     self._store_conversation_after_response()
                     
@@ -603,12 +628,21 @@ DATABRICKS_ACCESS_TOKEN=your_token
         st.subheader("3. Model Endpoint")
         st.text("Replace the query_endpoint function with your model serving logic")
         
-        st.subheader("4. Database Schema Update")
-        st.text("Add conversation_id column to your feedback table:")
+        st.subheader("4. How Conversation Storage Works")
+        st.text("Using your existing feedback table structure:")
         st.code("""
-ALTER TABLE ai_squad_np.default.handyman_feedback 
-ADD COLUMN conversation_id STRING;
+-- Conversations are stored with:
+-- feedback = 'conversation_log'
+-- comment contains conversation_id for overwrite logic
+-- message contains the full conversation history
+
+-- To view stored conversations:
+SELECT * FROM ai_squad_np.default.handyman_feedback 
+WHERE feedback = 'conversation_log' 
+ORDER BY timestamp DESC;
         """)
+        
+        st.info("💡 No table changes needed! Conversations use the existing feedback table structure with special markers to distinguish them from user feedback.")
         
         if not DATABRICKS_AVAILABLE:
             st.warning("⚠️ Databricks SDK not installed. Feedback will use local storage.")
