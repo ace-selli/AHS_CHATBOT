@@ -307,7 +307,7 @@ class StreamlitChatbot:
                 print(f"⚠️ Could not upsert conversation: {e}")
                 traceback.print_exc()
         
-        threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history)).start()
+        threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history,)).start()
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling"""
