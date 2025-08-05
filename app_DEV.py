@@ -266,7 +266,7 @@ class StreamlitChatbot:
 
     def _save_conversation_log(self):
         """Upsert the entire chat history to the same feedback table (idempotent per session)"""
-        def upsert_conversation(chat_history):
+        def upsert_conversation(chat_history, conversation_id):
             try:
                 from databricks import sql
     
@@ -276,11 +276,6 @@ class StreamlitChatbot:
                     access_token=st.secrets["DATABRICKS_PAT"]
                 )
                 cursor = conn.cursor()
-    
-                # Use session state to track this session's unique log id
-                if st.session_state.conversation_log_id is None:
-                    new_id = str(uuid.uuid4())
-                    st.session_state.conversation_log_id = new_id
     
                 cursor.execute("""
                     MERGE INTO ai_squad_np.default.handyman_feedback AS target
@@ -292,10 +287,10 @@ class StreamlitChatbot:
                     WHEN NOT MATCHED THEN INSERT (id, timestamp, message, feedback, comment)
                     VALUES (?, ?, ?, ?, ?)
                 """, (
-                    st.session_state.conversation_log_id,
+                    conversation_id,
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     str(chat_history),
-                    st.session_state.conversation_log_id,
+                    conversation_id,
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     str(chat_history),
                     "Conversation_Log",
@@ -311,7 +306,12 @@ class StreamlitChatbot:
                 print(f"⚠️ Could not upsert conversation: {e}")
                 traceback.print_exc()
 
-        threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history,)).start()
+        # Use session state to track this session's unique log id
+        if st.session_state.conversation_log_id is None:
+            new_id = str(uuid.uuid4())
+            st.session_state.conversation_log_id = new_id
+        
+        threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history, st.session_state.conversation_log_id)).start()
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling"""
