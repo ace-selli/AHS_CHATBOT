@@ -264,7 +264,7 @@ class StreamlitChatbot:
 
     def _save_conversation_log(self):
         """Upsert the entire chat history to the same feedback table (idempotent per session)"""
-        def upsert_conversation():
+        def upsert_conversation(chat_history):
             try:
                 from databricks import sql
     
@@ -291,10 +291,10 @@ class StreamlitChatbot:
                 """, (
                     st.session_state.conversation_log_id,
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                    str(st.session_state.chat_history),
+                    str(chat_history),
                     st.session_state.conversation_log_id,
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                    str(st.session_state.chat_history),
+                    str(chat_history),
                     "Conversation_Log"
                 ))
     
@@ -307,7 +307,7 @@ class StreamlitChatbot:
                 print(f"⚠️ Could not upsert conversation: {e}")
                 traceback.print_exc()
     
-        threading.Thread(target=upsert_conversation).start()
+        threading.Thread(target=upsert_conversation, args=(chat_history)).start()
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling"""
