@@ -78,7 +78,7 @@ class StreamlitChatbot:
         if 'input_key_counter' not in st.session_state:
             st.session_state.input_key_counter = 0
         if 'conversation_log_id' not in st.session_state:
-            st.session_state.conversation_log_id = str(uuid.uuid4())
+            st.session_state.conversation_log_id = None
     
     def _add_custom_css(self):
         """Add custom CSS styling to match the original design"""
@@ -279,7 +279,8 @@ class StreamlitChatbot:
     
                 # Use session state to track this session's unique log id
                 if 'conversation_log_id' not in st.session_state:
-                    st.session_state.conversation_log_id = str(uuid.uuid4())
+                    new_id = str(uuid.uuid4())
+                    st.session_state.conversation_log_id = new_id
     
                 cursor.execute("""
                     MERGE INTO ai_squad_np.default.handyman_feedback AS target
@@ -417,7 +418,7 @@ class StreamlitChatbot:
         st.session_state.feedback_comments = {}
         st.session_state.feedback_submitted = set()
         # Reset conversation_log_id to new UUID for new conversation
-        st.session_state.conversation_log_id = str(uuid.uuid4())
+        st.session_state.conversation_log_id = None
         # Increment counter to force input widget to refresh
         st.session_state.input_key_counter += 1
         st.rerun()
