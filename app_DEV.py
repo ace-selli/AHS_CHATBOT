@@ -310,7 +310,7 @@ class StreamlitChatbot:
                 traceback.print_exc()
 
         ctx = get_script_run_ctx()
-        user_email = ctx.user_email if ctx else "Unknown"
+        user_email = ctx.session_info.user.email if ctx and ctx.session_info and ctx.session_info.user else "Unknown"
         
         threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history,user_email)).start()
     
