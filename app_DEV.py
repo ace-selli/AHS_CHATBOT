@@ -278,7 +278,7 @@ class StreamlitChatbot:
                 cursor = conn.cursor()
     
                 # Use session state to track this session's unique log id
-                if 'conversation_log_id' not in st.session_state:
+                if st.session_state.conversation_log_id is None:
                     new_id = str(uuid.uuid4())
                     st.session_state.conversation_log_id = new_id
     
