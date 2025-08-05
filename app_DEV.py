@@ -79,6 +79,8 @@ class StreamlitChatbot:
             st.session_state.input_key_counter = 0
         if 'conversation_log_id' not in st.session_state:
             st.session_state.conversation_log_id = None
+        if 'response_count' not in st.session_state:
+            st.session_state.response_count = 0
     
     def _add_custom_css(self):
         """Add custom CSS styling to match the original design"""
@@ -266,7 +268,7 @@ class StreamlitChatbot:
 
     def _save_conversation_log(self):
         """Upsert the entire chat history to the same feedback table (idempotent per session)"""
-        def upsert_conversation(chat_history, conversation_id):
+        def upsert_conversation(chat_history, conversation_id, response_count):
             try:
                 from databricks import sql
     
@@ -294,7 +296,7 @@ class StreamlitChatbot:
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     str(chat_history),
                     "Conversation_Log",
-                    ""
+                    f"Reponse(s): {reponse_count}"
                 ))
     
                 conn.commit()
@@ -310,8 +312,10 @@ class StreamlitChatbot:
         if st.session_state.conversation_log_id is None:
             new_id = str(uuid.uuid4())
             st.session_state.conversation_log_id = new_id
+
+        st.session_state.response_count += 1
         
-        threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history, st.session_state.conversation_log_id)).start()
+        threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history, st.session_state.conversation_log_id, st.session_state.response_count)).start()
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling"""
@@ -421,6 +425,7 @@ class StreamlitChatbot:
         st.session_state.conversation_log_id = None
         # Increment counter to force input widget to refresh
         st.session_state.input_key_counter += 1
+        st.session_state.response_count = 0
         st.rerun()
     
     def render(self):
