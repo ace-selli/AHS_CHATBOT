@@ -4,6 +4,7 @@ import uuid
 import time
 import threading
 import os
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 # Optional Databricks imports with fallback
 try:
@@ -264,7 +265,7 @@ class StreamlitChatbot:
 
     def _save_conversation_log(self):
         """Upsert the entire chat history to the same feedback table (idempotent per session)"""
-        def upsert_conversation(chat_history):
+        def upsert_conversation(chat_history,user_email):
             try:
                 from databricks import sql
     
@@ -287,7 +288,7 @@ class StreamlitChatbot:
                         timestamp = ?, 
                         message = ?
                     WHEN NOT MATCHED THEN INSERT (id, timestamp, message, feedback, comment)
-                    VALUES (?, ?, ?, ?, '')
+                    VALUES (?, ?, ?, ?, ?)
                 """, (
                     st.session_state.conversation_log_id,
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -295,7 +296,8 @@ class StreamlitChatbot:
                     st.session_state.conversation_log_id,
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     str(chat_history),
-                    "Conversation_Log"
+                    "Conversation_Log",
+                    str(user_email)
                 ))
     
                 conn.commit()
@@ -306,8 +308,11 @@ class StreamlitChatbot:
                 import traceback
                 print(f"⚠️ Could not upsert conversation: {e}")
                 traceback.print_exc()
+
+        ctx = get_script_run_ctx()
+        user_email = ctx.user_email if ctx else "Unknown"
         
-        threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history,)).start()
+        threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history,user_email)).start()
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling"""
