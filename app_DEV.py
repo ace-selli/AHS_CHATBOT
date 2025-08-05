@@ -296,7 +296,7 @@ class StreamlitChatbot:
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     str(chat_history),
                     "Conversation_Log",
-                    f"Reponse(s): {reponse_count}"
+                    f"Reponse(s): {response_count}"
                 ))
     
                 conn.commit()
