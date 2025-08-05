@@ -77,7 +77,7 @@ class StreamlitChatbot:
         # Add input key counter to force widget refresh
         if 'input_key_counter' not in st.session_state:
             st.session_state.input_key_counter = 0
-        # Add conversation ID for tracking this session
+        # Add conversation ID for conversation storage
         if 'conversation_id' not in st.session_state:
             st.session_state.conversation_id = str(uuid.uuid4())
     
@@ -200,32 +200,6 @@ class StreamlitChatbot:
         </style>
         """, unsafe_allow_html=True)
     
-    def _get_user_email(self):
-        """Get the current user's email from Streamlit"""
-        try:
-            # Check if we're in Streamlit Cloud and user info is available
-            if hasattr(st, 'context') and hasattr(st.context, 'headers'):
-                # Try to get user from headers (Streamlit Cloud)
-                headers = st.context.headers
-                if headers and 'Streamlit-User' in headers:
-                    return headers['Streamlit-User']
-            
-            # Try experimental user (if available)
-            try:
-                import streamlit.runtime.scriptrunner as sr
-                ctx = sr.get_script_run_ctx()
-                if ctx and hasattr(ctx, 'user_info') and ctx.user_info:
-                    return ctx.user_info.get('email', 'unknown_user@example.com')
-            except:
-                pass
-                
-            # Default fallback
-            return "unknown_user@example.com"
-            
-        except Exception as e:
-            print(f"Could not get user email: {e}")
-            return "unknown_user@example.com"
-    
     def _call_model_endpoint(self, messages, max_tokens=128):
         """Call the model endpoint with error handling"""
         try:
@@ -234,108 +208,6 @@ class StreamlitChatbot:
         except Exception as e:
             print(f'Error calling model endpoint: {str(e)}')
             raise
-    
-    def _save_conversation_to_database(self):
-        """Save/update the entire conversation to database"""
-        # Get data from session state BEFORE starting the thread
-        try:
-            conversation_id = st.session_state.conversation_id
-            chat_history = st.session_state.chat_history.copy()  # Make a copy
-            user_email = self._get_user_email()
-        except Exception as e:
-            print(f"Error accessing session state: {e}")
-            return
-        
-        def upsert_conversation(conv_id, history, email):
-            try:
-                print("🛠️ Storing conversation...")
-                
-                # Prepare conversation data using passed parameters
-                conversation_data = {
-                    'id': conv_id,
-                    'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                    'message': str(history),
-                    'feedback': 'conversation_log',  # Special marker to distinguish from feedback
-                    'comment': email  # Store email in comment field as requested
-                }
-                
-                print(f"🔍 Conversation data: {conversation_data}")
-                print("🚀 Connecting to Databricks...")
-                
-                # Only try to import if Databricks is available
-                if not DATABRICKS_AVAILABLE:
-                    print("⚠️ Databricks not available, skipping conversation storage")
-                    return
-                
-                # Only try to import if Databricks is available
-                if not DATABRICKS_AVAILABLE:
-                    print("⚠️ Databricks not available, skipping feedback storage")
-                    return
-                
-                # Import databricks.sql here to ensure it's available
-                from databricks import sql
-                
-                conn = sql.connect(
-                    server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
-                    http_path=st.secrets["DATABRICKS_HTTP_PATH"],
-                    access_token=st.secrets["DATABRICKS_PAT"]
-                )
-                
-                cursor = conn.cursor()
-                
-                # Check if conversation already exists
-                print("🔍 Checking if conversation exists...")
-                cursor.execute("""
-                    SELECT id FROM ai_squad_np.default.handyman_feedback 
-                    WHERE id = ? AND feedback = 'conversation_log'
-                """, (conversation_data['id'],))
-                
-                existing_record = cursor.fetchone()
-                
-                if existing_record:
-                    # Update existing conversation
-                    print("📝 Updating existing conversation...")
-                    cursor.execute("""
-                        UPDATE ai_squad_np.default.handyman_feedback
-                        SET timestamp = ?, message = ?, comment = ?
-                        WHERE id = ? AND feedback = 'conversation_log'
-                    """, (
-                        conversation_data['timestamp'],
-                        conversation_data['message'],
-                        conversation_data['comment'],
-                        conversation_data['id']
-                    ))
-                else:
-                    # Insert new conversation
-                    print("📝 Inserting new conversation...")
-                    cursor.execute("""
-                        INSERT INTO ai_squad_np.default.handyman_feedback
-                        (id, timestamp, message, feedback, comment)
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (
-                        conversation_data['id'],
-                        conversation_data['timestamp'],
-                        conversation_data['message'],
-                        conversation_data['feedback'],
-                        conversation_data['comment']
-                    ))
-                
-                # Commit the transaction
-                conn.commit()
-                print("✅ Conversation committed to database")
-                
-                cursor.close()
-                conn.close()
-                print("✅ Database connection closed")
-                
-            except Exception as e:
-                import traceback
-                print(f"⚠️ Could not store conversation: {e}")
-                print("🔍 Full traceback:")
-                traceback.print_exc()
-        
-        # Run in background thread
-        threading.Thread(target=upsert_conversation).start()
     
     def _save_feedback_to_database(self, feedback_data):
         """Save feedback to database - simple version"""
@@ -392,6 +264,105 @@ class StreamlitChatbot:
         
         # Run in background thread
         threading.Thread(target=insert_feedback).start()
+    
+    def _save_conversation_to_database(self, conversation_data):
+        """Save/update conversation to database - overwrites existing conversation"""
+        def upsert_conversation():
+            try:
+                print("🛠️ Storing conversation...")
+                print(f"🔍 Conversation ID: {conversation_data['conversation_id']}")
+                print("🚀 Connecting to Databricks...")
+                
+                # Import databricks.sql here to ensure it's available
+                from databricks import sql
+                
+                conn = sql.connect(
+                    server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
+                    http_path=st.secrets["DATABRICKS_HTTP_PATH"],
+                    access_token=st.secrets["DATABRICKS_PAT"]
+                )
+                
+                cursor = conn.cursor()
+                
+                # Check if conversation already exists
+                print("🔍 Checking if conversation exists...")
+                cursor.execute("""
+                    SELECT conversation_id FROM ai_squad_np.default.handyman_feedback 
+                    WHERE conversation_id = ?
+                """, (conversation_data['conversation_id'],))
+                
+                existing = cursor.fetchone()
+                
+                if existing:
+                    # Update existing conversation
+                    print("📝 Updating existing conversation...")
+                    cursor.execute("""
+                        UPDATE ai_squad_np.default.handyman_feedback
+                        SET timestamp = ?, 
+                            message = ?, 
+                            feedback = ?, 
+                            comment = ?
+                        WHERE conversation_id = ?
+                    """, (
+                        conversation_data['timestamp'],
+                        conversation_data['message'],
+                        conversation_data['feedback'],
+                        conversation_data['comment'],
+                        conversation_data['conversation_id']
+                    ))
+                else:
+                    # Insert new conversation
+                    print("📝 Inserting new conversation...")
+                    cursor.execute("""
+                        INSERT INTO ai_squad_np.default.handyman_feedback
+                        (id, conversation_id, timestamp, message, feedback, comment)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        conversation_data['id'],
+                        conversation_data['conversation_id'],
+                        conversation_data['timestamp'],
+                        conversation_data['message'],
+                        conversation_data['feedback'],
+                        conversation_data['comment']
+                    ))
+                
+                # Commit the transaction
+                conn.commit()
+                print("✅ Conversation committed to database")
+                
+                cursor.close()
+                conn.close()
+                print("✅ Database connection closed")
+                
+            except Exception as e:
+                import traceback
+                print(f"⚠️ Could not store conversation: {e}")
+                print("🔍 Full traceback:")
+                traceback.print_exc()
+        
+        # Run in background thread
+        threading.Thread(target=upsert_conversation).start()
+    
+    def _store_conversation_after_response(self):
+        """Store the entire conversation after receiving a bot response"""
+        try:
+            # Prepare conversation data
+            conversation_data = {
+                'id': str(uuid.uuid4()),  # New ID for each update, but same conversation_id
+                'conversation_id': st.session_state.conversation_id,
+                'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                'message': str(st.session_state.chat_history),  # Store entire conversation
+                'feedback': 'conversation_log',  # Special marker to distinguish from user feedback
+                'comment': f'Conversation with {len(st.session_state.chat_history)} messages'
+            }
+            
+            print(f"🔍 Storing conversation: {st.session_state.conversation_id}")
+            
+            # Save to database (will overwrite existing conversation)
+            self._save_conversation_to_database(conversation_data)
+            
+        except Exception as e:
+            print(f"Conversation storage error: {e}")
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling"""
@@ -492,19 +463,18 @@ class StreamlitChatbot:
             print(f"Feedback submission error: {e}")
     
     def _clear_chat(self):
-        """Clear the chat history"""
+        """Clear the chat history and start a new conversation"""
         st.session_state.chat_history = []
         st.session_state.feedback_selection = {}
         st.session_state.feedback_comments = {}
         st.session_state.feedback_submitted = set()
-        # Generate new conversation ID for the new conversation
+        # Generate new conversation ID for new conversation
         st.session_state.conversation_id = str(uuid.uuid4())
         # Increment counter to force input widget to refresh
         st.session_state.input_key_counter += 1
         st.rerun()
     
     def render(self):
-        print("🐛 DEBUG: Using new version with _store_conversation_sync")
         """Main render method for the chatbot interface"""
         # Title, info note, and chat area in single container to eliminate all gaps
         st.markdown('''
@@ -571,12 +541,8 @@ class StreamlitChatbot:
                         'content': assistant_response
                     })
                     
-                    # Save/update conversation to database after each assistant response
-                    try:
-                        self._store_conversation_sync()
-                    except Exception as conv_error:
-                        print(f"Error saving conversation: {conv_error}")
-                        # Don't let conversation saving errors break the app
+                    # Store conversation after receiving response
+                    self._store_conversation_after_response()
                     
                 except Exception as e:
                     # Add error message
@@ -586,12 +552,8 @@ class StreamlitChatbot:
                         'content': error_message
                     })
                     
-                    # Still save conversation even with errors
-                    try:
-                        self._store_conversation_sync()
-                    except Exception as conv_error:
-                        print(f"Error saving conversation: {conv_error}")
-                        # Don't let conversation saving errors break the app
+                    # Store conversation even if there was an error
+                    self._store_conversation_after_response()
             
             # Rerun to refresh the interface
             st.rerun()
@@ -640,6 +602,13 @@ DATABRICKS_ACCESS_TOKEN=your_token
         
         st.subheader("3. Model Endpoint")
         st.text("Replace the query_endpoint function with your model serving logic")
+        
+        st.subheader("4. Database Schema Update")
+        st.text("Add conversation_id column to your feedback table:")
+        st.code("""
+ALTER TABLE ai_squad_np.default.handyman_feedback 
+ADD COLUMN conversation_id STRING;
+        """)
         
         if not DATABRICKS_AVAILABLE:
             st.warning("⚠️ Databricks SDK not installed. Feedback will use local storage.")
