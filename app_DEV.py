@@ -285,13 +285,15 @@ class StreamlitChatbot:
                     ON target.id = source.id
                     WHEN MATCHED THEN UPDATE SET 
                         timestamp = ?, 
-                        message = ?
+                        message = ?, 
+                        comment = ?
                     WHEN NOT MATCHED THEN INSERT (id, timestamp, message, feedback, comment)
                     VALUES (?, ?, ?, ?, ?)
                 """, (
                     conversation_id,
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     str(chat_history),
+                    f"Reponse(s): {response_count}",
                     conversation_id,
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     str(chat_history),
