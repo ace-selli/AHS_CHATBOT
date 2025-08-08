@@ -435,7 +435,7 @@ class StreamlitChatbot:
         # Title, info note, and chat area in single container to eliminate all gaps
         st.markdown('''
         <div class="content-with-bottom-padding">
-        <h2 class="chat-title">Ace Handyman Services Customer Rep</h2>
+        <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
         <div class="info-note">
             💬 Ask the rep below for handyman job information and estimates.
         </div>
