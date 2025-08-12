@@ -77,6 +77,10 @@ class StreamlitChatbot:
         # Add input key counter to force widget refresh
         if 'input_key_counter' not in st.session_state:
             st.session_state.input_key_counter = 0
+        if 'conversation_log_id' not in st.session_state:
+            st.session_state.conversation_log_id = None
+        if 'response_count' not in st.session_state:
+            st.session_state.response_count = 0
     
     def _add_custom_css(self):
         """Add custom CSS styling to match the original design"""
@@ -261,6 +265,59 @@ class StreamlitChatbot:
         
         # Run in background thread
         threading.Thread(target=insert_feedback).start()
+
+    def _save_conversation_log(self):
+        """Upsert the entire chat history to the same feedback table (idempotent per session)"""
+        def upsert_conversation(chat_history, conversation_id, response_count):
+            try:
+                from databricks import sql
+    
+                conn = sql.connect(
+                    server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
+                    http_path=st.secrets["DATABRICKS_HTTP_PATH"],
+                    access_token=st.secrets["DATABRICKS_PAT"]
+                )
+                cursor = conn.cursor()
+    
+                cursor.execute("""
+                    MERGE INTO ai_squad_np.default.handyman_feedback AS target
+                    USING (SELECT ? AS id) AS source
+                    ON target.id = source.id
+                    WHEN MATCHED THEN UPDATE SET 
+                        timestamp = ?, 
+                        message = ?, 
+                        comment = ?
+                    WHEN NOT MATCHED THEN INSERT (id, timestamp, message, feedback, comment)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    conversation_id,
+                    datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    str(chat_history),
+                    f"Reponse(s): {response_count}",
+                    conversation_id,
+                    datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    str(chat_history),
+                    "Conversation_Log",
+                    f"Reponse(s): {response_count}"
+                ))
+    
+                conn.commit()
+                cursor.close()
+                conn.close()
+    
+            except Exception as e:
+                import traceback
+                print(f"⚠️ Could not upsert conversation: {e}")
+                traceback.print_exc()
+
+        # Use session state to track this session's unique log id
+        if st.session_state.conversation_log_id is None:
+            new_id = str(uuid.uuid4())
+            st.session_state.conversation_log_id = new_id
+
+        st.session_state.response_count += 1
+        
+        threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history, st.session_state.conversation_log_id, st.session_state.response_count)).start()
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling"""
@@ -366,8 +423,11 @@ class StreamlitChatbot:
         st.session_state.feedback_selection = {}
         st.session_state.feedback_comments = {}
         st.session_state.feedback_submitted = set()
+        # Reset conversation_log_id to new UUID for new conversation
+        st.session_state.conversation_log_id = None
         # Increment counter to force input widget to refresh
         st.session_state.input_key_counter += 1
+        st.session_state.response_count = 0
         st.rerun()
     
     def render(self):
@@ -375,7 +435,7 @@ class StreamlitChatbot:
         # Title, info note, and chat area in single container to eliminate all gaps
         st.markdown('''
         <div class="content-with-bottom-padding">
-        <h2 class="chat-title">Ace Handyman Services Customer Rep</h2>
+        <h2 class="chat-title">Ace Handyman Services Estimation Rep</h2>
         <div class="info-note">
             💬 Ask the rep below for handyman job information and estimates.
         </div>
@@ -436,6 +496,9 @@ class StreamlitChatbot:
                         'role': 'assistant',
                         'content': assistant_response
                     })
+
+                    # Save or update conversation log
+                    self._save_conversation_log()
                     
                 except Exception as e:
                     # Add error message
@@ -444,6 +507,9 @@ class StreamlitChatbot:
                         'role': 'assistant',
                         'content': error_message
                     })
+
+                    # Save or update conversation log
+                    self._save_conversation_log()
             
             # Rerun to refresh the interface
             st.rerun()
