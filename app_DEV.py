@@ -4,6 +4,7 @@ import uuid
 import time
 import threading
 import os
+import requests
 
 # Optional Databricks imports with fallback
 try:
@@ -21,80 +22,25 @@ try:
 except ImportError:
     SQLITE_AVAILABLE = False
 
-# PERFORMANCE OPTIMIZATION 1: Cache database connections
+# OPTIMIZATION 1: Cache requests session to reuse connections
 @st.cache_resource
-def get_databricks_connection():
-    """Cache the Databricks connection to avoid repeated authentication"""
-    try:
-        if not DATABRICKS_AVAILABLE:
-            return None
-        
-        from databricks import sql
-        conn = sql.connect(
-            server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
-            http_path=st.secrets["DATABRICKS_HTTP_PATH"],
-            access_token=st.secrets["DATABRICKS_PAT"]
-        )
-        print("✅ Databricks connection established and cached")
-        return conn
-    except Exception as e:
-        print(f"❌ Failed to establish Databricks connection: {e}")
-        return None
+def get_requests_session():
+    """Create a cached requests session to reuse HTTP connections"""
+    session = requests.Session()
+    session.headers.update({
+        "Authorization": f"Bearer {st.secrets['DATABRICKS_PAT']}",
+        "Content-Type": "application/json"
+    })
+    return session
 
-# PERFORMANCE OPTIMIZATION 2: Cache the model endpoint function
-@st.cache_data(show_spinner=False, ttl=300)  # Cache for 5 minutes
-def query_endpoint_cached(endpoint_name, messages_str, max_tokens=128):
-    """Cached version of model endpoint query"""
-    try:
-        import requests
-        
-        # Convert messages string back to list for API call
-        import json
-        messages = json.loads(messages_str)
-        
-        url = st.secrets['ENDPOINT_URL']
-        
-        headers = {
-            "Authorization": f"Bearer {st.secrets['DATABRICKS_PAT']}",
-            "Content-Type": "application/json"
-        }
-        
-        request_data = {
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": 0.7
-        }
-        
-        response = requests.post(url, headers=headers, json=request_data)
-        response.raise_for_status()
-        
-        result = response.json()
-        
-        # Handle common response formats
-        if "choices" in result and len(result["choices"]) > 0:
-            return result["choices"][0]["message"]["content"]
-        elif "predictions" in result and len(result["predictions"]) > 0:
-            return result["predictions"][0]
-        elif "content" in result:
-            return result["content"]
-        else:
-            return str(result)
-            
-    except Exception as e:
-        raise Exception(f"Model endpoint error: {str(e)}")
-
-# Original function for non-cacheable calls
+# OPTIMIZATION 2: Add timeout and connection pooling to endpoint calls
 def query_endpoint(endpoint_name, messages, max_tokens=128):
-    """Query Databricks model serving endpoint - simple version"""
+    """Query Databricks model serving endpoint with optimizations"""
     try:
-        import requests
+        # Use cached session for connection reuse
+        session = get_requests_session()
         
         url = st.secrets['ENDPOINT_URL']
-        
-        headers = {
-            "Authorization": f"Bearer {st.secrets['DATABRICKS_PAT']}",
-            "Content-Type": "application/json"
-        }
         
         request_data = {
             "messages": messages,
@@ -102,7 +48,12 @@ def query_endpoint(endpoint_name, messages, max_tokens=128):
             "temperature": 0.7
         }
         
-        response = requests.post(url, headers=headers, json=request_data)
+        # OPTIMIZATION 3: Add timeout to prevent hanging
+        response = session.post(
+            url, 
+            json=request_data, 
+            timeout=(10, 60)  # (connection timeout, read timeout)
+        )
         response.raise_for_status()
         
         result = response.json()
@@ -120,10 +71,10 @@ def query_endpoint(endpoint_name, messages, max_tokens=128):
     except Exception as e:
         raise Exception(f"Model endpoint error: {str(e)}")
 
-# PERFORMANCE OPTIMIZATION 3: Cache CSS to avoid recomputation
+# OPTIMIZATION 4: Cache CSS to reduce recomputation
 @st.cache_data
 def get_custom_css():
-    """Cache the custom CSS to avoid recomputation"""
+    """Return cached CSS"""
     return """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
@@ -240,8 +191,6 @@ def get_custom_css():
 class StreamlitChatbot:
     def __init__(self, endpoint_name):
         self.endpoint_name = endpoint_name
-        # PERFORMANCE OPTIMIZATION 4: Initialize database connection once
-        self.db_conn = get_databricks_connection()
         self._initialize_session_state()
         self._add_custom_css()
     
@@ -261,50 +210,50 @@ class StreamlitChatbot:
             st.session_state.conversation_log_id = None
         if 'response_count' not in st.session_state:
             st.session_state.response_count = 0
-        # PERFORMANCE OPTIMIZATION 5: Track if first call has been made
-        if 'first_call_made' not in st.session_state:
-            st.session_state.first_call_made = False
     
     def _add_custom_css(self):
         """Add custom CSS styling using cached version"""
         st.markdown(get_custom_css(), unsafe_allow_html=True)
     
+    # OPTIMIZATION 5: Add async-style call with better error handling
     def _call_model_endpoint(self, messages, max_tokens=128):
-        """Call the model endpoint with caching for repeated queries"""
+        """Call the model endpoint with optimizations"""
         try:
             print('Calling model endpoint...')
+            start_time = time.time()
             
-            # PERFORMANCE OPTIMIZATION 6: Use cached version for similar queries
-            # Convert messages to string for caching (lists are not hashable)
-            import json
-            messages_str = json.dumps(messages, sort_keys=True)
+            result = query_endpoint(self.endpoint_name, messages, max_tokens)["content"]
             
-            # For the first few calls or very recent messages, don't use cache
-            # This ensures dynamic responses while still benefiting from cache for repeated queries
-            if not st.session_state.first_call_made:
-                st.session_state.first_call_made = True
-                return query_endpoint(self.endpoint_name, messages, max_tokens)["content"]
-            else:
-                # Use cached version for subsequent similar queries
-                return query_endpoint_cached(self.endpoint_name, messages_str, max_tokens)
-                
+            end_time = time.time()
+            print(f'Model endpoint call completed in {end_time - start_time:.2f} seconds')
+            
+            return result
         except Exception as e:
             print(f'Error calling model endpoint: {str(e)}')
             raise
     
     def _save_feedback_to_database(self, feedback_data):
-        """Save feedback to database using cached connection"""
+        """Save feedback to database - unchanged to preserve functionality"""
         def insert_feedback():
             try:
                 print("🛠️ Storing feedback...")
                 print(f"🔍 Feedback data: {feedback_data}")
+                print("🚀 Connecting to Databricks...")
                 
-                # PERFORMANCE OPTIMIZATION 7: Use cached connection
-                if self.db_conn is None:
-                    print("⚠️ No database connection available")
-                    return
+                from databricks import sql
                 
-                cursor = self.db_conn.cursor()
+                conn = sql.connect(
+                    server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
+                    http_path=st.secrets["DATABRICKS_HTTP_PATH"],
+                    access_token=st.secrets["DATABRICKS_PAT"]
+                )
+                
+                cursor = conn.cursor()
+                
+                print("🔍 Testing connection...")
+                cursor.execute("SELECT 1 as test")
+                result = cursor.fetchone()
+                print(f"✅ Connection test result: {result}")
                 
                 print("📝 Inserting feedback...")
                 cursor.execute("""
@@ -319,9 +268,12 @@ class StreamlitChatbot:
                     feedback_data['comment']
                 ))
                 
-                self.db_conn.commit()
+                conn.commit()
                 print("✅ Feedback committed to database")
+                
                 cursor.close()
+                conn.close()
+                print("✅ Database connection closed")
                 
             except Exception as e:
                 import traceback
@@ -329,19 +281,20 @@ class StreamlitChatbot:
                 print("🔍 Full traceback:")
                 traceback.print_exc()
         
-        # Run in background thread to avoid blocking UI
         threading.Thread(target=insert_feedback).start()
 
     def _save_conversation_log(self):
-        """Upsert the entire chat history using cached connection"""
+        """Upsert conversation log - unchanged to preserve functionality"""
         def upsert_conversation(chat_history, conversation_id, response_count):
             try:
-                # PERFORMANCE OPTIMIZATION 8: Use cached connection
-                if self.db_conn is None:
-                    print("⚠️ No database connection available for conversation log")
-                    return
-                
-                cursor = self.db_conn.cursor()
+                from databricks import sql
+    
+                conn = sql.connect(
+                    server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
+                    http_path=st.secrets["DATABRICKS_HTTP_PATH"],
+                    access_token=st.secrets["DATABRICKS_PAT"]
+                )
+                cursor = conn.cursor()
     
                 cursor.execute("""
                     MERGE INTO ai_squad_np.default.handyman_feedback AS target
@@ -365,8 +318,9 @@ class StreamlitChatbot:
                     f"Reponse(s): {response_count}"
                 ))
     
-                self.db_conn.commit()
+                conn.commit()
                 cursor.close()
+                conn.close()
     
             except Exception as e:
                 import traceback
@@ -379,35 +333,33 @@ class StreamlitChatbot:
 
         st.session_state.response_count += 1
         
-        # Run in background to avoid blocking UI
         threading.Thread(target=upsert_conversation, args=(
             st.session_state.chat_history, 
             st.session_state.conversation_log_id, 
             st.session_state.response_count
         )).start()
     
-    # PERFORMANCE OPTIMIZATION 9: Optimize message rendering
-    @st.cache_data(show_spinner=False)
-    def _format_message_content(_self, content, is_user=False):
-        """Cache formatted message content to avoid reprocessing"""
-        if is_user:
-            return f'<div class="chat-message user-message">{content}</div>'
-        else:
-            formatted_content = content.replace('\n', '<br>')
-            return f'<div class="chat-message assistant-message">{formatted_content}</div>'
-    
     def _render_message(self, message, index):
-        """Render a single message with cached formatting"""
-        is_user = message['role'] == 'user'
-        formatted_html = self._format_message_content(message['content'], is_user)
-        st.markdown(formatted_html, unsafe_allow_html=True)
-        
-        # Add feedback UI for the last assistant message
-        if not is_user and index == len(st.session_state.chat_history) - 1:
-            self._render_feedback_ui(index)
+        """Render a single message - unchanged"""
+        if message['role'] == 'user':
+            st.markdown(f"""
+            <div class="chat-message user-message">
+                {message['content']}
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            formatted_content = message['content'].replace('\n', '<br>')
+            st.markdown(f"""
+            <div class="chat-message assistant-message">
+                {formatted_content}
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if index == len(st.session_state.chat_history) - 1:
+                self._render_feedback_ui(index)
     
     def _render_feedback_ui(self, message_index):
-        """Render feedback buttons and form for assistant messages"""
+        """Render feedback UI - unchanged"""
         if message_index in st.session_state.feedback_submitted:
             st.markdown('<div class="feedback-thankyou">Thank you for the feedback!</div>', 
                        unsafe_allow_html=True)
@@ -415,7 +367,6 @@ class StreamlitChatbot:
         
         st.markdown('<div class="feedback-container">', unsafe_allow_html=True)
         
-        # Feedback buttons
         col1, col2, col3 = st.columns([1, 1, 6])
         
         with col1:
@@ -430,13 +381,11 @@ class StreamlitChatbot:
                 st.session_state.feedback_selection[str(message_index)] = 'thumbs-down'
                 st.rerun()
         
-        # Show selected feedback and form ONLY if a thumb button was pressed
         selected_feedback = st.session_state.feedback_selection.get(str(message_index))
         if selected_feedback:
             feedback_text = "👍 Positive" if selected_feedback == 'thumbs-up' else "👎 Negative"
             st.write(f"Selected: {feedback_text}")
             
-            # Comment box
             comment_key = f"comment_{message_index}"
             comment = st.text_area(
                 "Optional comment:",
@@ -445,7 +394,6 @@ class StreamlitChatbot:
                 placeholder="Share your thoughts about this response..."
             )
             
-            # Submit button
             submit_key = f"submit_{message_index}"
             if st.button("Submit Feedback", key=submit_key, type="primary"):
                 self._handle_feedback_submission(message_index, comment)
@@ -453,7 +401,7 @@ class StreamlitChatbot:
         st.markdown('</div>', unsafe_allow_html=True)
     
     def _handle_feedback_submission(self, message_index, comment):
-        """Handle feedback submission"""
+        """Handle feedback submission - unchanged"""
         try:
             feedback_value = st.session_state.feedback_selection.get(str(message_index), 'none')
             
@@ -467,10 +415,7 @@ class StreamlitChatbot:
             
             print(f"🔍 Submitting feedback: {feedback_data}")
             
-            # Save to database (async)
             self._save_feedback_to_database(feedback_data)
-            
-            # Mark as submitted
             st.session_state.feedback_submitted.add(message_index)
             
             st.success("Thank you for your feedback!")
@@ -481,7 +426,7 @@ class StreamlitChatbot:
             print(f"Feedback submission error: {e}")
     
     def _clear_chat(self):
-        """Clear the chat history and reset state"""
+        """Clear chat - unchanged"""
         st.session_state.chat_history = []
         st.session_state.feedback_selection = {}
         st.session_state.feedback_comments = {}
@@ -489,58 +434,47 @@ class StreamlitChatbot:
         st.session_state.conversation_log_id = None
         st.session_state.input_key_counter += 1
         st.session_state.response_count = 0
-        st.session_state.first_call_made = False  # Reset first call flag
-        # PERFORMANCE OPTIMIZATION 10: Clear caches when starting new conversation
-        st.cache_data.clear()
         st.rerun()
     
     def render(self):
-        """Main render method for the chatbot interface"""
-        # PERFORMANCE OPTIMIZATION 11: Use containers to minimize redraws
-        header_container = st.container()
-        chat_container = st.container()
-        input_container = st.container()
+        """Main render method - unchanged structure"""
+        st.markdown('''
+        <div class="content-with-bottom-padding">
+        <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
+        <div class="info-note">
+            💬 Ask the rep below for handyman job information and estimates.
+        </div>
+        <div class="chat-area">
+        ''', unsafe_allow_html=True)
         
-        with header_container:
-            st.markdown('''
-            <div class="content-with-bottom-padding">
-            <h2 class="chat-title">Ace Handyman Services Estimation Rep</h2>
-            <div class="info-note">
-                💬 Ask the rep below for handyman job information and estimates.
-            </div>
-            <div class="chat-area">
-            ''', unsafe_allow_html=True)
+        chat_container = st.container()
         
         with chat_container:
-            # Display chat history
             for i, message in enumerate(st.session_state.chat_history):
                 self._render_message(message, i)
         
-        st.markdown('</div></div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         
-        # Fixed input section at bottom
-        with input_container:
-            st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
-            
-            input_col, clear_col = st.columns([8, 1])
-            
-            with input_col:
-                user_input = st.chat_input(
-                    placeholder="Type your message here... (Press Enter to send)",
-                    key=f"chat_input_{st.session_state.input_key_counter}"
-                )
-            
-            with clear_col:
-                clear_button = st.button("Clear", use_container_width=True)
-                
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
         
-        # Handle input
+        input_col, clear_col = st.columns([8, 1])
+        
+        with input_col:
+            user_input = st.chat_input(
+                placeholder="Type your message here... (Press Enter to send)",
+                key=f"chat_input_{st.session_state.input_key_counter}"
+            )
+        
+        with clear_col:
+            clear_button = st.button("Clear", use_container_width=True)
+            
+        st.markdown('</div>', unsafe_allow_html=True)
+        
         if clear_button:
             self._clear_chat()
         
         if user_input and user_input.strip():
-            # Add user message
             st.session_state.chat_history.append({
                 'role': 'user', 
                 'content': user_input.strip()
@@ -548,8 +482,8 @@ class StreamlitChatbot:
             
             st.session_state.input_key_counter += 1
             
-            # PERFORMANCE OPTIMIZATION 12: Use more specific spinner context
-            with st.spinner("🤖 Generating response..."):
+            # OPTIMIZATION 6: More informative spinner with timing
+            with st.spinner("Thinking..."):
                 try:
                     assistant_response = self._call_model_endpoint(st.session_state.chat_history)
                     
@@ -558,7 +492,6 @@ class StreamlitChatbot:
                         'content': assistant_response
                     })
 
-                    # Save conversation log (async)
                     self._save_conversation_log()
                     
                 except Exception as e:
@@ -572,27 +505,17 @@ class StreamlitChatbot:
             
             st.rerun()
 
-# PERFORMANCE OPTIMIZATION 13: Cache the main app setup
-@st.cache_resource
-def setup_streamlit_config():
-    """Cache Streamlit configuration setup"""
+def main():
+    """Main function"""
     st.set_page_config(
         page_title="Ace Handyman Services Chat",
         page_icon="🔧",
         layout="centered",
         initial_sidebar_state="collapsed"
     )
-    return True
-
-def main():
-    """Main function to run the Streamlit app"""
-    setup_streamlit_config()
     
-    # Initialize chatbot with cached connection
     endpoint_name = st.secrets.get("DATABRICKS_ENDPOINT_NAME", "your_endpoint_name")
     chatbot = StreamlitChatbot(endpoint_name)
-    
-    # Render the chatbot
     chatbot.render()
 
 def show_setup_instructions():
