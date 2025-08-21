@@ -4,7 +4,6 @@ import uuid
 import time
 import threading
 import os
-import requests
 
 # Optional Databricks imports with fallback
 try:
@@ -22,25 +21,18 @@ try:
 except ImportError:
     SQLITE_AVAILABLE = False
 
-# OPTIMIZATION 1: Cache requests session to reuse connections
-@st.cache_resource
-def get_requests_session():
-    """Create a cached requests session to reuse HTTP connections"""
-    session = requests.Session()
-    session.headers.update({
-        "Authorization": f"Bearer {st.secrets['DATABRICKS_PAT']}",
-        "Content-Type": "application/json"
-    })
-    return session
-
-# OPTIMIZATION 2: Add timeout and connection pooling to endpoint calls
+# You'll need to implement this function or replace with your model serving logic
 def query_endpoint(endpoint_name, messages, max_tokens=128):
-    """Query Databricks model serving endpoint with optimizations"""
+    """Query Databricks model serving endpoint - simple version"""
     try:
-        # Use cached session for connection reuse
-        session = get_requests_session()
+        import requests
         
         url = st.secrets['ENDPOINT_URL']
+        
+        headers = {
+            "Authorization": f"Bearer {st.secrets['DATABRICKS_PAT']}",
+            "Content-Type": "application/json"
+        }
         
         request_data = {
             "messages": messages,
@@ -48,12 +40,7 @@ def query_endpoint(endpoint_name, messages, max_tokens=128):
             "temperature": 0.7
         }
         
-        # OPTIMIZATION 3: Add timeout to prevent hanging
-        response = session.post(
-            url, 
-            json=request_data, 
-            timeout=(10, 60)  # (connection timeout, read timeout)
-        )
+        response = requests.post(url, headers=headers, json=request_data)
         response.raise_for_status()
         
         result = response.json()
@@ -71,123 +58,6 @@ def query_endpoint(endpoint_name, messages, max_tokens=128):
     except Exception as e:
         raise Exception(f"Model endpoint error: {str(e)}")
 
-# OPTIMIZATION 4: Cache CSS to reduce recomputation
-@st.cache_data
-def get_custom_css():
-    """Return cached CSS"""
-    return """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
-    
-    .main-container {
-        font-family: 'DM Sans', sans-serif;
-        background-color: #F9F7F4;
-    }
-    
-    .chat-title {
-        font-size: 24px;
-        font-weight: 700;
-        color: #1B3139;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    
-    .chat-message {
-        padding: 10px 15px;
-        border-radius: 20px;
-        margin: 10px 0;
-        font-size: 16px;
-        line-height: 1.4;
-        max-width: 80%;
-    }
-    
-    .user-message {
-        background-color: #FF3621;
-        color: white;
-        margin-left: auto;
-        margin-right: 0;
-    }
-    
-    .assistant-message {
-        background-color: #1B3139;
-        color: white;
-        margin-left: 0;
-        margin-right: auto;
-    }
-    
-    .feedback-container {
-        margin-top: 10px;
-        padding: 10px;
-        background-color: transparent;
-        border-radius: 10px;
-        border: none;
-    }
-    
-    .feedback-thankyou {
-        color: #00A972;
-        font-weight: bold;
-        margin-top: 8px;
-    }
-    
-    .stButton > button {
-        border-radius: 20px;
-    }
-    
-    .feedback-buttons {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 10px;
-    }
-    
-    .typing-indicator {
-        background-color: #2D4550;
-        color: #EEEDE9;
-        padding: 10px 15px;
-        border-radius: 20px;
-        margin: 10px 0;
-        font-style: italic;
-    }
-    
-    .fixed-bottom-input {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background-color: #F9F7F4;
-        padding: 15px 20px;
-        border-top: 2px solid #EEEDE9;
-        z-index: 1000;
-        box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
-    }
-    
-    .content-with-bottom-padding {
-        padding-bottom: 120px;
-    }
-    
-    .info-note {
-        background-color: #EEEDE9;
-        border-left: 4px solid #1B3139;
-        padding: 12px 16px;
-        margin: 15px 0 -10px 0;
-        border-radius: 6px;
-        font-size: 14px;
-        color: #1B3139;
-    }
-    
-    .chat-area {
-        margin-top: -5px;
-    }
-    
-    .info-note + div {
-        margin-top: -20px !important;
-    }
-    
-    div[data-testid="stMarkdown"]:has(.info-note) + div {
-        margin-top: -30px !important;
-    }
-    </style>
-    """
-
 class StreamlitChatbot:
     def __init__(self, endpoint_name):
         self.endpoint_name = endpoint_name
@@ -204,6 +74,7 @@ class StreamlitChatbot:
             st.session_state.feedback_comments = {}
         if 'feedback_submitted' not in st.session_state:
             st.session_state.feedback_submitted = set()
+        # Add input key counter to force widget refresh
         if 'input_key_counter' not in st.session_state:
             st.session_state.input_key_counter = 0
         if 'conversation_log_id' not in st.session_state:
@@ -212,34 +83,142 @@ class StreamlitChatbot:
             st.session_state.response_count = 0
     
     def _add_custom_css(self):
-        """Add custom CSS styling using cached version"""
-        st.markdown(get_custom_css(), unsafe_allow_html=True)
+        """Add custom CSS styling to match the original design"""
+        st.markdown("""
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
+        
+        .main-container {
+            font-family: 'DM Sans', sans-serif;
+            background-color: #F9F7F4;
+        }
+        
+        .chat-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1B3139;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .chat-message {
+            padding: 10px 15px;
+            border-radius: 20px;
+            margin: 10px 0;
+            font-size: 16px;
+            line-height: 1.4;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background-color: #FF3621;
+            color: white;
+            margin-left: auto;
+            margin-right: 0;
+        }
+        
+        .assistant-message {
+            background-color: #1B3139;
+            color: white;
+            margin-left: 0;
+            margin-right: auto;
+        }
+        
+        .feedback-container {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: transparent; /* Changed from #EEEDE9 to transparent */
+            border-radius: 10px;
+            border: none; /* Remove any potential border */
+        }
+        
+        .feedback-thankyou {
+            color: #00A972;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        
+        .stButton > button {
+            border-radius: 20px;
+        }
+        
+        .feedback-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .typing-indicator {
+            background-color: #2D4550;
+            color: #EEEDE9;
+            padding: 10px 15px;
+            border-radius: 20px;
+            margin: 10px 0;
+            font-style: italic;
+        }
+        
+        /* Fixed bottom input bar */
+        .fixed-bottom-input {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #F9F7F4;
+            padding: 15px 20px;
+            border-top: 2px solid #EEEDE9;
+            z-index: 1000;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* Add bottom padding to content so it doesn't get hidden */
+        .content-with-bottom-padding {
+            padding-bottom: 120px;
+        }
+        
+        .info-note {
+            background-color: #EEEDE9;
+            border-left: 4px solid #1B3139;
+            padding: 12px 16px;
+            margin: 15px 0 -10px 0; /* Changed bottom margin to negative to pull content up */
+            border-radius: 6px;
+            font-size: 14px;
+            color: #1B3139;
+        }
+        
+        .chat-area {
+            margin-top: -5px; /* Negative margin to pull chat area up closer to info note */
+        }
+        
+        /* Aggressive targeting of the gap after info note */
+        .info-note + div {
+            margin-top: -20px !important;
+        }
+        
+        /* Target Streamlit's vertical block that comes after info note */
+        div[data-testid="stMarkdown"]:has(.info-note) + div {
+            margin-top: -30px !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
     
-    # OPTIMIZATION 5: Add async-style call with better error handling
     def _call_model_endpoint(self, messages, max_tokens=128):
-        """Call the model endpoint with optimizations"""
+        """Call the model endpoint with error handling"""
         try:
             print('Calling model endpoint...')
-            start_time = time.time()
-            
-            result = query_endpoint(self.endpoint_name, messages, max_tokens)["content"]
-            
-            end_time = time.time()
-            print(f'Model endpoint call completed in {end_time - start_time:.2f} seconds')
-            
-            return result
+            return query_endpoint(self.endpoint_name, messages, max_tokens)["content"]
         except Exception as e:
             print(f'Error calling model endpoint: {str(e)}')
             raise
     
     def _save_feedback_to_database(self, feedback_data):
-        """Save feedback to database - unchanged to preserve functionality"""
+        """Save feedback to database - simple version"""
         def insert_feedback():
             try:
                 print("🛠️ Storing feedback...")
                 print(f"🔍 Feedback data: {feedback_data}")
                 print("🚀 Connecting to Databricks...")
                 
+                # Import databricks.sql here to ensure it's available
                 from databricks import sql
                 
                 conn = sql.connect(
@@ -250,11 +229,13 @@ class StreamlitChatbot:
                 
                 cursor = conn.cursor()
                 
+                # Debug: Check if we can connect and see the table
                 print("🔍 Testing connection...")
                 cursor.execute("SELECT 1 as test")
                 result = cursor.fetchone()
                 print(f"✅ Connection test result: {result}")
                 
+                # Insert the feedback
                 print("📝 Inserting feedback...")
                 cursor.execute("""
                     INSERT INTO ai_squad_np.default.handyman_feedback
@@ -268,6 +249,7 @@ class StreamlitChatbot:
                     feedback_data['comment']
                 ))
                 
+                # Commit the transaction
                 conn.commit()
                 print("✅ Feedback committed to database")
                 
@@ -281,10 +263,11 @@ class StreamlitChatbot:
                 print("🔍 Full traceback:")
                 traceback.print_exc()
         
+        # Run in background thread
         threading.Thread(target=insert_feedback).start()
 
     def _save_conversation_log(self):
-        """Upsert conversation log - unchanged to preserve functionality"""
+        """Upsert the entire chat history to the same feedback table (idempotent per session)"""
         def upsert_conversation(chat_history, conversation_id, response_count):
             try:
                 from databricks import sql
@@ -327,27 +310,25 @@ class StreamlitChatbot:
                 print(f"⚠️ Could not upsert conversation: {e}")
                 traceback.print_exc()
 
+        # Use session state to track this session's unique log id
         if st.session_state.conversation_log_id is None:
             new_id = str(uuid.uuid4())
             st.session_state.conversation_log_id = new_id
 
         st.session_state.response_count += 1
         
-        threading.Thread(target=upsert_conversation, args=(
-            st.session_state.chat_history, 
-            st.session_state.conversation_log_id, 
-            st.session_state.response_count
-        )).start()
+        threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history, st.session_state.conversation_log_id, st.session_state.response_count)).start()
     
     def _render_message(self, message, index):
-        """Render a single message - unchanged"""
+        """Render a single message with appropriate styling"""
         if message['role'] == 'user':
             st.markdown(f"""
             <div class="chat-message user-message">
                 {message['content']}
             </div>
             """, unsafe_allow_html=True)
-        else:
+        else:  # assistant message
+            # Convert newlines to HTML line breaks for proper formatting
             formatted_content = message['content'].replace('\n', '<br>')
             st.markdown(f"""
             <div class="chat-message assistant-message">
@@ -355,11 +336,12 @@ class StreamlitChatbot:
             </div>
             """, unsafe_allow_html=True)
             
+            # Add feedback UI for the last assistant message
             if index == len(st.session_state.chat_history) - 1:
                 self._render_feedback_ui(index)
     
     def _render_feedback_ui(self, message_index):
-        """Render feedback UI - unchanged"""
+        """Render feedback buttons and form for assistant messages"""
         if message_index in st.session_state.feedback_submitted:
             st.markdown('<div class="feedback-thankyou">Thank you for the feedback!</div>', 
                        unsafe_allow_html=True)
@@ -367,6 +349,7 @@ class StreamlitChatbot:
         
         st.markdown('<div class="feedback-container">', unsafe_allow_html=True)
         
+        # Feedback buttons
         col1, col2, col3 = st.columns([1, 1, 6])
         
         with col1:
@@ -381,11 +364,13 @@ class StreamlitChatbot:
                 st.session_state.feedback_selection[str(message_index)] = 'thumbs-down'
                 st.rerun()
         
+        # Show selected feedback and form ONLY if a thumb button was pressed
         selected_feedback = st.session_state.feedback_selection.get(str(message_index))
         if selected_feedback:
             feedback_text = "👍 Positive" if selected_feedback == 'thumbs-up' else "👎 Negative"
             st.write(f"Selected: {feedback_text}")
             
+            # Comment box - only show after selection
             comment_key = f"comment_{message_index}"
             comment = st.text_area(
                 "Optional comment:",
@@ -394,6 +379,7 @@ class StreamlitChatbot:
                 placeholder="Share your thoughts about this response..."
             )
             
+            # Submit button - only show after selection
             submit_key = f"submit_{message_index}"
             if st.button("Submit Feedback", key=submit_key, type="primary"):
                 self._handle_feedback_submission(message_index, comment)
@@ -401,10 +387,12 @@ class StreamlitChatbot:
         st.markdown('</div>', unsafe_allow_html=True)
     
     def _handle_feedback_submission(self, message_index, comment):
-        """Handle feedback submission - unchanged"""
+        """Handle feedback submission"""
         try:
+            # Get feedback selection
             feedback_value = st.session_state.feedback_selection.get(str(message_index), 'none')
             
+            # Prepare feedback data with timezone-aware datetime
             feedback_data = {
                 'id': str(uuid.uuid4()),
                 'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -415,9 +403,13 @@ class StreamlitChatbot:
             
             print(f"🔍 Submitting feedback: {feedback_data}")
             
+            # Save to database
             self._save_feedback_to_database(feedback_data)
+            
+            # Mark as submitted
             st.session_state.feedback_submitted.add(message_index)
             
+            # Show success message
             st.success("Thank you for your feedback!")
             st.rerun()
             
@@ -426,18 +418,21 @@ class StreamlitChatbot:
             print(f"Feedback submission error: {e}")
     
     def _clear_chat(self):
-        """Clear chat - unchanged"""
+        """Clear the chat history"""
         st.session_state.chat_history = []
         st.session_state.feedback_selection = {}
         st.session_state.feedback_comments = {}
         st.session_state.feedback_submitted = set()
+        # Reset conversation_log_id to new UUID for new conversation
         st.session_state.conversation_log_id = None
+        # Increment counter to force input widget to refresh
         st.session_state.input_key_counter += 1
         st.session_state.response_count = 0
         st.rerun()
     
     def render(self):
-        """Main render method - unchanged structure"""
+        """Main render method for the chatbot interface"""
+        # Title, info note, and chat area in single container to eliminate all gaps
         st.markdown('''
         <div class="content-with-bottom-padding">
         <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
@@ -450,17 +445,22 @@ class StreamlitChatbot:
         chat_container = st.container()
         
         with chat_container:
+            # Display chat history
             for i, message in enumerate(st.session_state.chat_history):
                 self._render_message(message, i)
         
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
         
+        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-area
+        st.markdown('</div>', unsafe_allow_html=True)  # Close content-with-bottom-padding
+        
+        # Fixed input section at bottom of screen
         st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
         
+        # Create columns for chat input and clear button
         input_col, clear_col = st.columns([8, 1])
         
         with input_col:
+            # Use st.chat_input for built-in Enter key support
             user_input = st.chat_input(
                 placeholder="Type your message here... (Press Enter to send)",
                 key=f"chat_input_{st.session_state.input_key_counter}"
@@ -471,42 +471,51 @@ class StreamlitChatbot:
             
         st.markdown('</div>', unsafe_allow_html=True)
         
+        # Handle button clicks
         if clear_button:
             self._clear_chat()
         
         if user_input and user_input.strip():
+            # Add user message
             st.session_state.chat_history.append({
                 'role': 'user', 
                 'content': user_input.strip()
             })
             
+            # Increment counter to clear input field
             st.session_state.input_key_counter += 1
             
-            # OPTIMIZATION 6: More informative spinner with timing
+            # Show typing indicator
             with st.spinner("Thinking..."):
                 try:
+                    # Get assistant response
                     assistant_response = self._call_model_endpoint(st.session_state.chat_history)
                     
+                    # Add assistant message
                     st.session_state.chat_history.append({
                         'role': 'assistant',
                         'content': assistant_response
                     })
 
+                    # Save or update conversation log
                     self._save_conversation_log()
                     
                 except Exception as e:
+                    # Add error message
                     error_message = f'Error: {str(e)}'
                     st.session_state.chat_history.append({
                         'role': 'assistant',
                         'content': error_message
                     })
 
+                    # Save or update conversation log
                     self._save_conversation_log()
             
+            # Rerun to refresh the interface
             st.rerun()
 
 def main():
-    """Main function"""
+    """Main function to run the Streamlit app"""
     st.set_page_config(
         page_title="Ace Handyman Services Chat",
         page_icon="🔧",
@@ -514,10 +523,14 @@ def main():
         initial_sidebar_state="collapsed"
     )
     
+    # Initialize chatbot
     endpoint_name = st.secrets.get("DATABRICKS_ENDPOINT_NAME", "your_endpoint_name")
     chatbot = StreamlitChatbot(endpoint_name)
+    
+    # Render the chatbot
     chatbot.render()
 
+# Requirements and setup instructions
 def show_setup_instructions():
     """Show setup instructions in the sidebar"""
     with st.sidebar:
