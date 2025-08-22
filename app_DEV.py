@@ -494,19 +494,26 @@ class StreamlitChatbot:
     
     def _is_handyman_response(self, content):
         """Check if content follows the standard handyman response format"""
-        return ('Estimated time:' in content and 
-                'Confidence:' in content and 
-                'Schedule Summary:' in content)
+        # Make the check more flexible
+        has_time = re.search(r'estimated\s+time:', content, re.IGNORECASE) is not None
+        has_confidence = re.search(r'confidence:', content, re.IGNORECASE) is not None
+        has_summary = re.search(r'schedule\s+summary:', content, re.IGNORECASE) is not None
+        
+        return has_time and has_confidence and has_summary
     
     def _format_handyman_response(self, content):
         """Format handyman response with enhanced visual structure"""
         import re
         
-        # Extract components using regex
-        time_match = re.search(r'Estimated time:\s*(.+?)(?:\n|$)', content)
-        confidence_match = re.search(r'Confidence:\s*(.+?)(?:\n|$)', content)
-        summary_match = re.search(r'Schedule Summary:\s*\n((?:- .+(?:\n|$))+)', content)
-        questions_match = re.search(r'To improve this estimate.+?:\s*\n((?:- .+(?:\n|$))*)', content, re.DOTALL)
+        # Extract components using more flexible regex patterns
+        time_match = re.search(r'Estimated time:\s*(.+?)(?=\n|$)', content, re.IGNORECASE)
+        confidence_match = re.search(r'Confidence:\s*(.+?)(?=\n|$)', content, re.IGNORECASE)
+        
+        # More flexible pattern for schedule summary
+        summary_match = re.search(r'Schedule Summary:\s*\n((?:\s*-\s*.+(?:\n|$))*)', content, re.IGNORECASE | re.MULTILINE)
+        
+        # More flexible pattern for questions
+        questions_match = re.search(r'To improve this estimate[^:]*:\s*\n((?:\s*-\s*.+(?:\n|$))*)', content, re.IGNORECASE | re.MULTILINE | re.DOTALL)
         
         html_parts = []
         
@@ -526,9 +533,9 @@ class StreamlitChatbot:
             if confidence_match:
                 confidence = confidence_match.group(1).strip().lower()
                 badge_class = "confidence-badge"
-                if confidence == 'low':
+                if 'low' in confidence:
                     badge_class += " low"
-                elif confidence == 'high':
+                elif 'high' in confidence:
                     badge_class += " high"
                 
                 html_parts.append(f'''
@@ -554,15 +561,20 @@ class StreamlitChatbot:
             # Combine all summary items into one
             summary_text = summary_match.group(1).strip()
             # Remove bullet points and newlines, join with commas
-            summary_items = [item.replace('- ', '').strip() for item in summary_text.split('\n') if item.strip()]
-            combined_summary = ', '.join(summary_items)
+            summary_items = []
+            for line in summary_text.split('\n'):
+                line = line.strip()
+                if line and line.startswith('- '):
+                    summary_items.append(line[2:].strip())  # Remove '- ' prefix
             
-            html_parts.append(f'''
-                <li>
-                    <span class="list-emoji">🔧</span>
-                    <span>{combined_summary}</span>
-                </li>
-            ''')
+            if summary_items:
+                combined_summary = ', '.join(summary_items)
+                html_parts.append(f'''
+                    <li>
+                        <span class="list-emoji">🔧</span>
+                        <span>{self._escape_html(combined_summary)}</span>
+                    </li>
+                ''')
             
             html_parts.append('</ul>')
         
@@ -577,16 +589,17 @@ class StreamlitChatbot:
             ''')
             
             questions_text = questions_match.group(1).strip()
-            questions = [q.replace('- ', '').strip() for q in questions_text.split('\n') if q.strip()]
-            
-            for question in questions:
-                if question:
-                    html_parts.append(f'''
-                        <li>
-                            <span class="list-emoji">💭</span>
-                            <span>{question}</span>
-                        </li>
-                    ''')
+            for line in questions_text.split('\n'):
+                line = line.strip()
+                if line and line.startswith('- '):
+                    question = line[2:].strip()  # Remove '- ' prefix
+                    if question:
+                        html_parts.append(f'''
+                            <li>
+                                <span class="list-emoji">💭</span>
+                                <span>{self._escape_html(question)}</span>
+                            </li>
+                        ''')
             
             html_parts.append('</ul>')
         
@@ -720,6 +733,10 @@ class StreamlitChatbot:
         else:  # assistant message
             # Format the content for better readability
             formatted_content = self._format_message_content(message['content'])
+            
+            # Debug: Print the formatted content to see what we're generating
+            print(f"DEBUG - Formatted content: {formatted_content[:200]}...")
+            
             st.markdown(f"""
             <div class="chat-message assistant-message">
                 {formatted_content}
@@ -786,174 +803,4 @@ class StreamlitChatbot:
             feedback_data = {
                 'id': str(uuid.uuid4()),
                 'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                'message': str(st.session_state.chat_history),
-                'feedback': feedback_value,
-                'comment': comment or ''
-            }
-            
-            print(f"🔍 Submitting feedback: {feedback_data}")
-            
-            # Save to database
-            self._save_feedback_to_database(feedback_data)
-            
-            # Mark as submitted
-            st.session_state.feedback_submitted.add(message_index)
-            
-            # Show success message
-            st.success("Thank you for your feedback!")
-            st.rerun()
-            
-        except Exception as e:
-            st.error(f"Failed to submit feedback: {str(e)}")
-            print(f"Feedback submission error: {e}")
-    
-    def _clear_chat(self):
-        """Clear the chat history"""
-        st.session_state.chat_history = []
-        st.session_state.feedback_selection = {}
-        st.session_state.feedback_comments = {}
-        st.session_state.feedback_submitted = set()
-        # Reset conversation_log_id to new UUID for new conversation
-        st.session_state.conversation_log_id = None
-        # Increment counter to force input widget to refresh
-        st.session_state.input_key_counter += 1
-        st.session_state.response_count = 0
-        st.rerun()
-    
-    def render(self):
-        """Main render method for the chatbot interface"""
-        # Title, info note, and chat area in single container to eliminate all gaps
-        st.markdown('''
-        <div class="content-with-bottom-padding">
-        <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
-        <div class="info-note">
-            💬 Ask the rep below for handyman job information and estimates.
-        </div>
-        <div class="chat-area">
-        ''', unsafe_allow_html=True)
-        
-        chat_container = st.container()
-        
-        with chat_container:
-            # Display chat history
-            for i, message in enumerate(st.session_state.chat_history):
-                self._render_message(message, i)
-        
-        
-        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-area
-        st.markdown('</div>', unsafe_allow_html=True)  # Close content-with-bottom-padding
-        
-        # Fixed input section at bottom of screen
-        st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
-        
-        # Create columns for chat input and clear button
-        input_col, clear_col = st.columns([8, 1])
-        
-        with input_col:
-            # Use st.chat_input for built-in Enter key support
-            user_input = st.chat_input(
-                placeholder="Type your message here... (Press Enter to send)",
-                key=f"chat_input_{st.session_state.input_key_counter}"
-            )
-        
-        with clear_col:
-            clear_button = st.button("Clear", use_container_width=True)
-            
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Handle button clicks
-        if clear_button:
-            self._clear_chat()
-        
-        if user_input and user_input.strip():
-            # Add user message
-            st.session_state.chat_history.append({
-                'role': 'user', 
-                'content': user_input.strip()
-            })
-            
-            # Increment counter to clear input field
-            st.session_state.input_key_counter += 1
-            
-            # Show typing indicator
-            with st.spinner("Thinking..."):
-                try:
-                    # Get assistant response
-                    assistant_response = self._call_model_endpoint(st.session_state.chat_history)
-                    
-                    # Add assistant message
-                    st.session_state.chat_history.append({
-                        'role': 'assistant',
-                        'content': assistant_response
-                    })
-
-                    # Save or update conversation log
-                    self._save_conversation_log()
-                    
-                except Exception as e:
-                    # Add error message
-                    error_message = f'Error: {str(e)}'
-                    st.session_state.chat_history.append({
-                        'role': 'assistant',
-                        'content': error_message
-                    })
-
-                    # Save or update conversation log
-                    self._save_conversation_log()
-            
-            # Rerun to refresh the interface
-            st.rerun()
-
-def main():
-    """Main function to run the Streamlit app"""
-    st.set_page_config(
-        page_title="Ace Handyman Services Chat",
-        page_icon="🔧",
-        layout="centered",
-        initial_sidebar_state="collapsed"
-    )
-    
-    # Initialize chatbot
-    endpoint_name = st.secrets.get("DATABRICKS_ENDPOINT_NAME", "your_endpoint_name")
-    chatbot = StreamlitChatbot(endpoint_name)
-    
-    # Render the chatbot
-    chatbot.render()
-
-# Requirements and setup instructions
-def show_setup_instructions():
-    """Show setup instructions in the sidebar"""
-    with st.sidebar:
-        st.header("Setup Instructions")
-        
-        st.subheader("1. Install Dependencies")
-        st.code("""
-# Basic requirements
-pip install streamlit
-
-# For Databricks integration (optional)
-pip install databricks-sdk databricks-sql-connector
-
-# For local SQLite fallback
-# sqlite3 is included with Python
-        """)
-        
-        st.subheader("2. Environment Variables")
-        st.text("Set these if using Databricks:")
-        st.code("""
-DATABRICKS_SERVER_HOSTNAME=your_hostname
-DATABRICKS_HTTP_PATH=your_http_path  
-DATABRICKS_ACCESS_TOKEN=your_token
-        """)
-        
-        st.subheader("3. Model Endpoint")
-        st.text("Replace the query_endpoint function with your model serving logic")
-        
-        if not DATABRICKS_AVAILABLE:
-            st.warning("⚠️ Databricks SDK not installed. Feedback will use local storage.")
-        else:
-            st.success("✅ Databricks SDK available")
-
-if __name__ == "__main__":
-    show_setup_instructions()
-    main()
+                'message': str(st.session_state.chat_history
