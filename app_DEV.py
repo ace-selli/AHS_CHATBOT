@@ -522,13 +522,11 @@ class StreamlitChatbot:
             html_parts.append('<div class="summary-header">')
             
             if time_match:
-                html_parts.append(f'''
-                    <div class="estimate-row">
-                        <span class="estimate-emoji">⏱️</span>
-                        <span class="estimate-label">Estimated time:</span>
-                        <span>{time_match.group(1).strip()}</span>
-                    </div>
-                ''')
+                html_parts.append('<div class="estimate-row">')
+                html_parts.append('<span class="estimate-emoji">⏱️</span>')
+                html_parts.append('<span class="estimate-label">Estimated time:</span>')
+                html_parts.append(f'<span>{self._escape_html(time_match.group(1).strip())}</span>')
+                html_parts.append('</div>')
             
             if confidence_match:
                 confidence = confidence_match.group(1).strip().lower()
@@ -538,25 +536,21 @@ class StreamlitChatbot:
                 elif 'high' in confidence:
                     badge_class += " high"
                 
-                html_parts.append(f'''
-                    <div class="estimate-row">
-                        <span class="estimate-emoji">🎯</span>
-                        <span class="estimate-label">Confidence:</span>
-                        <span class="{badge_class}">{confidence_match.group(1).strip()}</span>
-                    </div>
-                ''')
+                html_parts.append('<div class="estimate-row">')
+                html_parts.append('<span class="estimate-emoji">🎯</span>')
+                html_parts.append('<span class="estimate-label">Confidence:</span>')
+                html_parts.append(f'<span class="{badge_class}">{self._escape_html(confidence_match.group(1).strip())}</span>')
+                html_parts.append('</div>')
             
             html_parts.append('</div>')
         
         # Schedule Summary - always as single bullet point
         if summary_match:
-            html_parts.append('''
-                <div class="section-header">
-                    <span class="section-emoji">📋</span>
-                    <span>Schedule Summary</span>
-                </div>
-                <ul class="enhanced-list task-list">
-            ''')
+            html_parts.append('<div class="section-header">')
+            html_parts.append('<span class="section-emoji">📋</span>')
+            html_parts.append('<span>Schedule Summary</span>')
+            html_parts.append('</div>')
+            html_parts.append('<ul class="enhanced-list task-list">')
             
             # Combine all summary items into one
             summary_text = summary_match.group(1).strip()
@@ -569,24 +563,20 @@ class StreamlitChatbot:
             
             if summary_items:
                 combined_summary = ', '.join(summary_items)
-                html_parts.append(f'''
-                    <li>
-                        <span class="list-emoji">🔧</span>
-                        <span>{self._escape_html(combined_summary)}</span>
-                    </li>
-                ''')
+                html_parts.append('<li>')
+                html_parts.append('<span class="list-emoji">🔧</span>')
+                html_parts.append(f'<span>{self._escape_html(combined_summary)}</span>')
+                html_parts.append('</li>')
             
             html_parts.append('</ul>')
         
         # Questions section
         if questions_match:
-            html_parts.append('''
-                <div class="section-header">
-                    <span class="section-emoji">❓</span>
-                    <span>To improve this estimate, please answer the following</span>
-                </div>
-                <ul class="enhanced-list question-list">
-            ''')
+            html_parts.append('<div class="section-header">')
+            html_parts.append('<span class="section-emoji">❓</span>')
+            html_parts.append('<span>To improve this estimate, please answer the following</span>')
+            html_parts.append('</div>')
+            html_parts.append('<ul class="enhanced-list question-list">')
             
             questions_text = questions_match.group(1).strip()
             for line in questions_text.split('\n'):
@@ -594,12 +584,10 @@ class StreamlitChatbot:
                 if line and line.startswith('- '):
                     question = line[2:].strip()  # Remove '- ' prefix
                     if question:
-                        html_parts.append(f'''
-                            <li>
-                                <span class="list-emoji">💭</span>
-                                <span>{self._escape_html(question)}</span>
-                            </li>
-                        ''')
+                        html_parts.append('<li>')
+                        html_parts.append('<span class="list-emoji">💭</span>')
+                        html_parts.append(f'<span>{self._escape_html(question)}</span>')
+                        html_parts.append('</li>')
             
             html_parts.append('</ul>')
         
