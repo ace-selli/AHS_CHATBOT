@@ -91,13 +91,13 @@ class StreamlitChatbot:
         
         .main-container {
             font-family: 'DM Sans', sans-serif;
-            background-color: #F9F7F4;
+            background-color: #FFFFFF;
         }
         
         .chat-title {
             font-size: 24px;
             font-weight: 700;
-            color: #1B3139;
+            color: #E73137;
             text-align: center;
             margin-bottom: 20px;
         }
@@ -114,14 +114,14 @@ class StreamlitChatbot:
         }
         
         .user-message {
-            background-color: #FF3621;
+            background-color: #E73137;
             color: white;
             margin-left: auto;
             margin-right: 0;
         }
         
         .assistant-message {
-            background-color: #1B3139;
+            background-color: #010202;
             color: white;
             margin-left: 0;
             margin-right: auto;
@@ -193,11 +193,11 @@ class StreamlitChatbot:
         
         /* Enhanced handyman response styling */
         .assistant-message .summary-header {
-            background: rgba(238, 237, 233, 0.15);
+            background: rgba(231, 49, 55, 0.1);
             padding: 12px 16px;
             border-radius: 10px;
             margin-bottom: 15px;
-            border-left: 4px solid #00A972;
+            border-left: 4px solid #E73137;
         }
         
         .assistant-message .estimate-row {
@@ -214,13 +214,13 @@ class StreamlitChatbot:
         
         .assistant-message .estimate-label {
             font-weight: 600;
-            color: #EEEDE9;
+            color: white;
             margin-right: 8px;
         }
         
         .assistant-message .confidence-badge {
-            background: rgba(0, 169, 114, 0.2);
-            color: #00A972;
+            background: rgba(231, 49, 55, 0.8);
+            color: white;
             padding: 3px 8px;
             border-radius: 12px;
             font-size: 14px;
@@ -228,20 +228,20 @@ class StreamlitChatbot:
         }
         
         .assistant-message .confidence-badge.low {
-            background: rgba(255, 152, 0, 0.2);
-            color: #FF9800;
+            background: rgba(231, 49, 55, 0.6);
+            color: white;
         }
         
         .assistant-message .confidence-badge.high {
-            background: rgba(76, 175, 80, 0.2);
-            color: #4CAF50;
+            background: #E73137;
+            color: white;
         }
         
         .assistant-message .section-header {
             display: flex;
             align-items: center;
             font-weight: 600;
-            color: #EEEDE9;
+            color: white;
             margin: 18px 0 10px 0;
             font-size: 16px;
         }
@@ -258,11 +258,11 @@ class StreamlitChatbot:
         }
         
         .assistant-message .enhanced-list li {
-            background: rgba(238, 237, 233, 0.1);
+            background: rgba(255, 255, 255, 0.1);
             margin-bottom: 8px;
             padding: 10px 12px;
             border-radius: 8px;
-            border-left: 3px solid #D4D2CE;
+            border-left: 3px solid rgba(255, 255, 255, 0.5);
             line-height: 1.5;
             display: flex;
             align-items: flex-start;
@@ -276,13 +276,13 @@ class StreamlitChatbot:
         }
         
         .assistant-message .question-list li {
-            border-left-color: #FF9800;
-            background: rgba(255, 152, 0, 0.1);
+            border-left-color: #E73137;
+            background: rgba(231, 49, 55, 0.15);
         }
         
         .assistant-message .task-list li {
-            border-left-color: #00A972;
-            background: rgba(0, 169, 114, 0.1);
+            border-left-color: white;
+            background: rgba(255, 255, 255, 0.08);
         }
         
         .feedback-container {
@@ -294,7 +294,7 @@ class StreamlitChatbot:
         }
         
         .feedback-thankyou {
-            color: #00A972;
+            color: #E73137;
             font-weight: bold;
             margin-top: 8px;
         }
@@ -310,8 +310,8 @@ class StreamlitChatbot:
         }
         
         .typing-indicator {
-            background-color: #2D4550;
-            color: #EEEDE9;
+            background-color: #010202;
+            color: white;
             padding: 10px 15px;
             border-radius: 20px;
             margin: 10px 0;
@@ -324,9 +324,9 @@ class StreamlitChatbot:
             bottom: 0;
             left: 0;
             right: 0;
-            background-color: #F9F7F4;
+            background-color: #FFFFFF;
             padding: 15px 20px;
-            border-top: 2px solid #EEEDE9;
+            border-top: 2px solid #E73137;
             z-index: 1000;
             box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
         }
@@ -337,13 +337,13 @@ class StreamlitChatbot:
         }
         
         .info-note {
-            background-color: #EEEDE9;
-            border-left: 4px solid #1B3139;
+            background-color: rgba(231, 49, 55, 0.1);
+            border-left: 4px solid #E73137;
             padding: 12px 16px;
             margin: 15px 0 -10px 0;
             border-radius: 6px;
             font-size: 14px;
-            color: #1B3139;
+            color: #010202;
         }
         
         .chat-area {
