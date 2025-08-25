@@ -803,4 +803,174 @@ class StreamlitChatbot:
             feedback_data = {
                 'id': str(uuid.uuid4()),
                 'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                'message': str(st.session_state.chat_history
+                'message': str(st.session_state.chat_history),
+                'feedback': feedback_value,
+                'comment': comment or ''
+            }
+            
+            print(f"🔍 Submitting feedback: {feedback_data}")
+            
+            # Save to database
+            self._save_feedback_to_database(feedback_data)
+            
+            # Mark as submitted
+            st.session_state.feedback_submitted.add(message_index)
+            
+            # Show success message
+            st.success("Thank you for your feedback!")
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"Failed to submit feedback: {str(e)}")
+            print(f"Feedback submission error: {e}")
+    
+    def _clear_chat(self):
+        """Clear the chat history"""
+        st.session_state.chat_history = []
+        st.session_state.feedback_selection = {}
+        st.session_state.feedback_comments = {}
+        st.session_state.feedback_submitted = set()
+        # Reset conversation_log_id to new UUID for new conversation
+        st.session_state.conversation_log_id = None
+        # Increment counter to force input widget to refresh
+        st.session_state.input_key_counter += 1
+        st.session_state.response_count = 0
+        st.rerun()
+    
+    def render(self):
+        """Main render method for the chatbot interface"""
+        # Title, info note, and chat area in single container to eliminate all gaps
+        st.markdown('''
+        <div class="content-with-bottom-padding">
+        <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
+        <div class="info-note">
+            💬 Ask the rep below for handyman job information and estimates.
+        </div>
+        <div class="chat-area">
+        ''', unsafe_allow_html=True)
+        
+        chat_container = st.container()
+        
+        with chat_container:
+            # Display chat history
+            for i, message in enumerate(st.session_state.chat_history):
+                self._render_message(message, i)
+        
+        
+        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-area
+        st.markdown('</div>', unsafe_allow_html=True)  # Close content-with-bottom-padding
+        
+        # Fixed input section at bottom of screen
+        st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
+        
+        # Create columns for chat input and clear button
+        input_col, clear_col = st.columns([8, 1])
+        
+        with input_col:
+            # Use st.chat_input for built-in Enter key support
+            user_input = st.chat_input(
+                placeholder="Type your message here... (Press Enter to send)",
+                key=f"chat_input_{st.session_state.input_key_counter}"
+            )
+        
+        with clear_col:
+            clear_button = st.button("Clear", use_container_width=True)
+            
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Handle button clicks
+        if clear_button:
+            self._clear_chat()
+        
+        if user_input and user_input.strip():
+            # Add user message
+            st.session_state.chat_history.append({
+                'role': 'user', 
+                'content': user_input.strip()
+            })
+            
+            # Increment counter to clear input field
+            st.session_state.input_key_counter += 1
+            
+            # Show typing indicator
+            with st.spinner("Thinking..."):
+                try:
+                    # Get assistant response
+                    assistant_response = self._call_model_endpoint(st.session_state.chat_history)
+                    
+                    # Add assistant message
+                    st.session_state.chat_history.append({
+                        'role': 'assistant',
+                        'content': assistant_response
+                    })
+
+                    # Save or update conversation log
+                    self._save_conversation_log()
+                    
+                except Exception as e:
+                    # Add error message
+                    error_message = f'Error: {str(e)}'
+                    st.session_state.chat_history.append({
+                        'role': 'assistant',
+                        'content': error_message
+                    })
+
+                    # Save or update conversation log
+                    self._save_conversation_log()
+            
+            # Rerun to refresh the interface
+            st.rerun()
+
+def main():
+    """Main function to run the Streamlit app"""
+    st.set_page_config(
+        page_title="Ace Handyman Services Chat",
+        page_icon="🔧",
+        layout="centered",
+        initial_sidebar_state="collapsed"
+    )
+    
+    # Initialize chatbot
+    endpoint_name = st.secrets.get("DATABRICKS_ENDPOINT_NAME", "your_endpoint_name")
+    chatbot = StreamlitChatbot(endpoint_name)
+    
+    # Render the chatbot
+    chatbot.render()
+
+# Requirements and setup instructions
+def show_setup_instructions():
+    """Show setup instructions in the sidebar"""
+    with st.sidebar:
+        st.header("Setup Instructions")
+        
+        st.subheader("1. Install Dependencies")
+        st.code("""
+# Basic requirements
+pip install streamlit
+
+# For Databricks integration (optional)
+pip install databricks-sdk databricks-sql-connector
+
+# For local SQLite fallback
+# sqlite3 is included with Python
+        """)
+        
+        st.subheader("2. Environment Variables")
+        st.text("Set these if using Databricks:")
+        st.code("""
+DATABRICKS_SERVER_HOSTNAME=your_hostname
+DATABRICKS_HTTP_PATH=your_http_path  
+DATABRICKS_ACCESS_TOKEN=your_token
+        """)
+        
+        st.subheader("3. Model Endpoint")
+        st.text("Replace the query_endpoint function with your model serving logic")
+        
+        if not DATABRICKS_AVAILABLE:
+            st.warning("⚠️ Databricks SDK not installed. Feedback will use local storage.")
+        else:
+            st.success("✅ Databricks SDK available")
+
+if __name__ == "__main__":
+    show_setup_instructions()
+    main()
