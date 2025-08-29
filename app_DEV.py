@@ -5,6 +5,8 @@ import time
 import threading
 import os
 import re
+import requests
+import json
 
 # Optional Databricks imports with fallback
 try:
@@ -22,12 +24,48 @@ try:
 except ImportError:
     SQLITE_AVAILABLE = False
 
-# You'll need to implement this function or replace with your model serving logic
-def query_endpoint(endpoint_name, messages, max_tokens=128):
-    """Query Databricks model serving endpoint - simple version"""
+def stream_databricks_chat(messages):
+    """
+    Yields text chunks from a Databricks chat endpoint that supports SSE ('data:' lines).
+    Compatible with OpenAI-style /v1/chat/completions stream responses.
+    """
+    url = st.secrets["ENDPOINT_URL"]
+    headers = {
+        "Authorization": f"Bearer {st.secrets['DATABRICKS_PAT']}",
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+        "Connection": "keep-alive",
+    }
+    payload = {"messages": messages, "stream": True}
+
     try:
-        import requests
-        
+        with requests.post(url, headers=headers, json=payload, stream=True, timeout=300) as r:
+            r.raise_for_status()
+            for raw_line in r.iter_lines(decode_unicode=True):
+                if not raw_line:
+                    continue
+                data = raw_line[len("data: "):].strip() if raw_line.startswith("data: ") else raw_line.strip()
+                if data == "[DONE]":
+                    break
+                try:
+                    obj = json.loads(data)
+                except json.JSONDecodeError:
+                    continue
+                try:
+                    delta = obj["choices"][0].get("delta") or obj["choices"][0].get("message") or {}
+                    piece = delta.get("content") or ""
+                    if piece:
+                        yield piece
+                except Exception:
+                    piece = obj.get("response") or obj.get("text") or ""
+                    if piece:
+                        yield piece
+    except requests.exceptions.RequestException as e:
+        yield f"\n\n Connection error while streaming: {e}"
+
+def query_endpoint(endpoint_name, messages, max_tokens=128):
+    """Non-streaming fallback for model endpoint - simple version"""
+    try:
         url = st.secrets['ENDPOINT_URL']
         
         headers = {
@@ -38,7 +76,8 @@ def query_endpoint(endpoint_name, messages, max_tokens=128):
         request_data = {
             "messages": messages,
             "max_tokens": max_tokens,
-            "temperature": 0.7
+            "temperature": 0.7,
+            "stream": False
         }
         
         response = requests.post(url, headers=headers, json=request_data)
@@ -75,19 +114,31 @@ class StreamlitChatbot:
             st.session_state.feedback_comments = {}
         if 'feedback_submitted' not in st.session_state:
             st.session_state.feedback_submitted = set()
-        # Add input key counter to force widget refresh
         if 'input_key_counter' not in st.session_state:
             st.session_state.input_key_counter = 0
         if 'conversation_log_id' not in st.session_state:
             st.session_state.conversation_log_id = None
         if 'response_count' not in st.session_state:
             st.session_state.response_count = 0
+        # Add streaming state
+        if 'is_streaming' not in st.session_state:
+            st.session_state.is_streaming = False
     
     def _add_custom_css(self):
-        """Add custom CSS styling with improved readability while maintaining Ace Hardware colors"""
-        st.markdown("""
+        """Add custom CSS styling with typing indicator"""
+        # Add typing indicator CSS from first implementation
+        TYPING_CSS = """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
+        
+        .typing-dots { display:inline-flex; align-items:center; gap:.35rem; opacity:0.9; }
+        .typing-dots .dot {
+          width:.38rem; height:.38rem; border-radius:50%;
+          background: currentColor; opacity:.25; animation: bounce 1s infinite ease-in-out;
+        }
+        .typing-dots .dot:nth-child(2){ animation-delay:.2s }
+        .typing-dots .dot:nth-child(3){ animation-delay:.4s }
+        @keyframes bounce { 0%,80%,100%{transform:translateY(0); opacity:.25} 40%{transform:translateY(-.25rem); opacity:1} }
         
         .main-container {
             font-family: 'DM Sans', sans-serif;
@@ -371,16 +422,23 @@ class StreamlitChatbot:
             margin-top: -30px !important;
         }
         </style>
-        """, unsafe_allow_html=True)
+        """
+        st.markdown(TYPING_CSS, unsafe_allow_html=True)
     
-    def _call_model_endpoint(self, messages, max_tokens=128):
-        """Call the model endpoint with error handling"""
+    def _call_model_endpoint_streaming(self, messages):
+        """Call the model endpoint with streaming support"""
         try:
-            print('Calling model endpoint...')
-            return query_endpoint(self.endpoint_name, messages, max_tokens)["content"]
+            print('Calling model endpoint with streaming...')
+            return stream_databricks_chat(messages)
         except Exception as e:
-            print(f'Error calling model endpoint: {str(e)}')
-            raise
+            print(f'Error calling streaming endpoint: {str(e)}')
+            # Fallback to non-streaming
+            try:
+                response = query_endpoint(self.endpoint_name, messages)["content"]
+                # Simulate streaming by yielding the whole response
+                yield response
+            except Exception as fallback_error:
+                yield f"Error: {str(fallback_error)}"
     
     def _save_feedback_to_database(self, feedback_data):
         """Save feedback to database - simple version"""
@@ -723,253 +781,4 @@ class StreamlitChatbot:
     
     def _render_message(self, message, index):
         """Render a single message with appropriate styling and improved formatting"""
-        if message['role'] == 'user':
-            st.markdown(f"""
-            <div class="chat-message user-message">
-                {self._escape_html(message['content'])}
-            </div>
-            """, unsafe_allow_html=True)
-        else:  # assistant message
-            # Format the content for better readability
-            formatted_content = self._format_message_content(message['content'])
-            
-            # Debug: Print the formatted content to see what we're generating
-            print(f"DEBUG - Formatted content: {formatted_content[:200]}...")
-            
-            st.markdown(f"""
-            <div class="chat-message assistant-message">
-                {formatted_content}
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Add feedback UI for the last assistant message
-            if index == len(st.session_state.chat_history) - 1:
-                self._render_feedback_ui(index)
-    
-    def _render_feedback_ui(self, message_index):
-        """Render feedback buttons and form for assistant messages"""
-        if message_index in st.session_state.feedback_submitted:
-            st.markdown('<div class="feedback-thankyou">Thank you for the feedback!</div>', 
-                       unsafe_allow_html=True)
-            return
-        
-        st.markdown('<div class="feedback-container">', unsafe_allow_html=True)
-        
-        # Feedback buttons
-        col1, col2, col3 = st.columns([1, 1, 6])
-        
-        with col1:
-            thumbs_up_key = f"thumbs_up_{message_index}"
-            if st.button("👍", key=thumbs_up_key, help="Good response"):
-                st.session_state.feedback_selection[str(message_index)] = 'thumbs-up'
-                st.rerun()
-        
-        with col2:
-            thumbs_down_key = f"thumbs_down_{message_index}"
-            if st.button("👎", key=thumbs_down_key, help="Poor response"):
-                st.session_state.feedback_selection[str(message_index)] = 'thumbs-down'
-                st.rerun()
-        
-        # Show selected feedback and form ONLY if a thumb button was pressed
-        selected_feedback = st.session_state.feedback_selection.get(str(message_index))
-        if selected_feedback:
-            feedback_text = "👍 Positive" if selected_feedback == 'thumbs-up' else "👎 Negative"
-            st.write(f"Selected: {feedback_text}")
-            
-            # Comment box - only show after selection
-            comment_key = f"comment_{message_index}"
-            comment = st.text_area(
-                "Optional comment:",
-                key=comment_key,
-                height=60,
-                placeholder="Share your thoughts about this response..."
-            )
-            
-            # Submit button - only show after selection
-            submit_key = f"submit_{message_index}"
-            if st.button("Submit Feedback", key=submit_key, type="primary"):
-                self._handle_feedback_submission(message_index, comment)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    def _handle_feedback_submission(self, message_index, comment):
-        """Handle feedback submission"""
-        try:
-            # Get feedback selection
-            feedback_value = st.session_state.feedback_selection.get(str(message_index), 'none')
-            
-            # Prepare feedback data with timezone-aware datetime
-            feedback_data = {
-                'id': str(uuid.uuid4()),
-                'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                'message': str(st.session_state.chat_history),
-                'feedback': feedback_value,
-                'comment': comment or ''
-            }
-            
-            print(f"🔍 Submitting feedback: {feedback_data}")
-            
-            # Save to database
-            self._save_feedback_to_database(feedback_data)
-            
-            # Mark as submitted
-            st.session_state.feedback_submitted.add(message_index)
-            
-            # Show success message
-            st.success("Thank you for your feedback!")
-            st.rerun()
-            
-        except Exception as e:
-            st.error(f"Failed to submit feedback: {str(e)}")
-            print(f"Feedback submission error: {e}")
-    
-    def _clear_chat(self):
-        """Clear the chat history"""
-        st.session_state.chat_history = []
-        st.session_state.feedback_selection = {}
-        st.session_state.feedback_comments = {}
-        st.session_state.feedback_submitted = set()
-        # Reset conversation_log_id to new UUID for new conversation
-        st.session_state.conversation_log_id = None
-        # Increment counter to force input widget to refresh
-        st.session_state.input_key_counter += 1
-        st.session_state.response_count = 0
-        st.rerun()
-    
-    def render(self):
-        """Main render method for the chatbot interface"""
-        # Title, info note, and chat area in single container to eliminate all gaps
-        st.markdown('''
-        <div class="content-with-bottom-padding">
-        <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
-        <div class="info-note">
-            💬 Ask the rep below for handyman job information and estimates.
-        </div>
-        <div class="chat-area">
-        ''', unsafe_allow_html=True)
-        
-        chat_container = st.container()
-        
-        with chat_container:
-            # Display chat history
-            for i, message in enumerate(st.session_state.chat_history):
-                self._render_message(message, i)
-        
-        
-        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-area
-        st.markdown('</div>', unsafe_allow_html=True)  # Close content-with-bottom-padding
-        
-        # Fixed input section at bottom of screen
-        st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
-        
-        # Create columns for chat input and clear button
-        input_col, clear_col = st.columns([8, 1])
-        
-        with input_col:
-            # Use st.chat_input for built-in Enter key support
-            user_input = st.chat_input(
-                placeholder="Type your message here... (Press Enter to send)",
-                key=f"chat_input_{st.session_state.input_key_counter}"
-            )
-        
-        with clear_col:
-            clear_button = st.button("Clear", use_container_width=True)
-            
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Handle button clicks
-        if clear_button:
-            self._clear_chat()
-        
-        if user_input and user_input.strip():
-            # Add user message
-            st.session_state.chat_history.append({
-                'role': 'user', 
-                'content': user_input.strip()
-            })
-            
-            # Increment counter to clear input field
-            st.session_state.input_key_counter += 1
-            
-            # Show typing indicator
-            with st.spinner("Thinking..."):
-                try:
-                    # Get assistant response
-                    assistant_response = self._call_model_endpoint(st.session_state.chat_history)
-                    
-                    # Add assistant message
-                    st.session_state.chat_history.append({
-                        'role': 'assistant',
-                        'content': assistant_response
-                    })
-
-                    # Save or update conversation log
-                    self._save_conversation_log()
-                    
-                except Exception as e:
-                    # Add error message
-                    error_message = f'Error: {str(e)}'
-                    st.session_state.chat_history.append({
-                        'role': 'assistant',
-                        'content': error_message
-                    })
-
-                    # Save or update conversation log
-                    self._save_conversation_log()
-            
-            # Rerun to refresh the interface
-            st.rerun()
-
-def main():
-    """Main function to run the Streamlit app"""
-    st.set_page_config(
-        page_title="Ace Handyman Services Chat",
-        page_icon="🔧",
-        layout="centered",
-        initial_sidebar_state="collapsed"
-    )
-    
-    # Initialize chatbot
-    endpoint_name = st.secrets.get("DATABRICKS_ENDPOINT_NAME", "your_endpoint_name")
-    chatbot = StreamlitChatbot(endpoint_name)
-    
-    # Render the chatbot
-    chatbot.render()
-
-# Requirements and setup instructions
-def show_setup_instructions():
-    """Show setup instructions in the sidebar"""
-    with st.sidebar:
-        st.header("Setup Instructions")
-        
-        st.subheader("1. Install Dependencies")
-        st.code("""
-# Basic requirements
-pip install streamlit
-
-# For Databricks integration (optional)
-pip install databricks-sdk databricks-sql-connector
-
-# For local SQLite fallback
-# sqlite3 is included with Python
-        """)
-        
-        st.subheader("2. Environment Variables")
-        st.text("Set these if using Databricks:")
-        st.code("""
-DATABRICKS_SERVER_HOSTNAME=your_hostname
-DATABRICKS_HTTP_PATH=your_http_path  
-DATABRICKS_ACCESS_TOKEN=your_token
-        """)
-        
-        st.subheader("3. Model Endpoint")
-        st.text("Replace the query_endpoint function with your model serving logic")
-        
-        if not DATABRICKS_AVAILABLE:
-            st.warning("⚠️ Databricks SDK not installed. Feedback will use local storage.")
-        else:
-            st.success("✅ Databricks SDK available")
-
-if __name__ == "__main__":
-    show_setup_instructions()
-    main()
+        if message['role'] == '
