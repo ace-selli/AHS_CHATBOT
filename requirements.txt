@@ -1,2 +1,4 @@
 requests
 databricks-sql-connector
+streamlit
+databricks-sdk
