@@ -4,7 +4,6 @@ import uuid
 import time
 import threading
 import os
-import re
 
 # Optional Databricks imports with fallback
 try:
@@ -84,227 +83,57 @@ class StreamlitChatbot:
             st.session_state.response_count = 0
     
     def _add_custom_css(self):
-        """Add custom CSS styling with improved readability while maintaining Ace Hardware colors"""
+        """Add custom CSS styling to match the original design"""
         st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
         
         .main-container {
             font-family: 'DM Sans', sans-serif;
-            background-color: #FFFFFF;
+            background-color: #F9F7F4;
         }
         
         .chat-title {
             font-size: 24px;
             font-weight: 700;
-            color: #E73137;
+            color: #1B3139;
             text-align: center;
             margin-bottom: 20px;
         }
         
         .chat-message {
-            padding: 15px 20px;
+            padding: 10px 15px;
             border-radius: 20px;
             margin: 10px 0;
             font-size: 16px;
-            line-height: 1.6;
+            line-height: 1.4;
             max-width: 80%;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
         .user-message {
-            background-color: #E73137;
+            background-color: #FF3621;
             color: white;
             margin-left: auto;
             margin-right: 0;
         }
         
         .assistant-message {
-            background-color: #F8F9FA;
-            color: #2C3E50;
+            background-color: #1B3139;
+            color: white;
             margin-left: 0;
             margin-right: auto;
-            border: 1px solid #E5E5E5;
-        }
-        
-        /* Improved text formatting within messages */
-        .assistant-message p {
-            margin: 0 0 12px 0;
-            line-height: 1.6;
-            color: #2C3E50;
-        }
-        
-        .assistant-message p:last-child {
-            margin-bottom: 0;
-        }
-        
-        .assistant-message ul, .assistant-message ol {
-            margin: 8px 0 12px 0;
-            padding-left: 20px;
-        }
-        
-        .assistant-message li {
-            margin-bottom: 6px;
-            line-height: 1.5;
-            color: #2C3E50;
-        }
-        
-        .assistant-message strong {
-            font-weight: 600;
-            color: #E73137;
-        }
-        
-        .assistant-message em {
-            font-style: italic;
-            color: #5A6B7D;
-        }
-        
-        .assistant-message code {
-            background-color: #E8E9EA;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            color: #2C3E50;
-            border: 1px solid #D1D5DB;
-        }
-        
-        .assistant-message pre {
-            background-color: #F1F3F4;
-            padding: 12px;
-            border-radius: 8px;
-            overflow-x: auto;
-            margin: 12px 0;
-            border-left: 3px solid #E73137;
-            border: 1px solid #D1D5DB;
-        }
-        
-        .assistant-message pre code {
-            background-color: transparent;
-            padding: 0;
-            font-size: 13px;
-            line-height: 1.4;
-            white-space: pre;
-            border: none;
-        }
-        
-        .assistant-message blockquote {
-            border-left: 3px solid #E73137;
-            padding-left: 15px;
-            margin: 12px 0;
-            font-style: italic;
-            color: #5A6B7D;
-        }
-        
-        /* Enhanced handyman response styling with better contrast */
-        .assistant-message .summary-header {
-            background: linear-gradient(135deg, #FFF5F5 0%, #FED7D7 100%);
-            padding: 12px 16px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            border-left: 4px solid #E73137;
-            border: 1px solid #F7A8AA;
-        }
-        
-        .assistant-message .estimate-row {
-            display: flex;
-            align-items: center;
-            margin-bottom: 8px;
-            font-size: 16px;
-        }
-        
-        .assistant-message .estimate-emoji {
-            margin-right: 10px;
-            font-size: 18px;
-        }
-        
-        .assistant-message .estimate-label {
-            font-weight: 600;
-            color: #E73137;
-            margin-right: 8px;
-        }
-        
-        .assistant-message .confidence-badge {
-            background: #E73137;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        
-        .assistant-message .confidence-badge.low {
-            background: #F56565;
-            color: white;
-        }
-        
-        .assistant-message .confidence-badge.high {
-            background: #C53030;
-            color: white;
-        }
-        
-        .assistant-message .section-header {
-            display: flex;
-            align-items: center;
-            font-weight: 600;
-            color: #E73137;
-            margin: 18px 0 10px 0;
-            font-size: 16px;
-        }
-        
-        .assistant-message .section-emoji {
-            margin-right: 8px;
-            font-size: 18px;
-        }
-        
-        .assistant-message .enhanced-list {
-            list-style: none;
-            padding: 0;
-            margin: 8px 0 16px 0;
-        }
-        
-        .assistant-message .enhanced-list li {
-            background: #FFFFFF;
-            margin-bottom: 8px;
-            padding: 10px 12px;
-            border-radius: 8px;
-            border-left: 3px solid #E73137;
-            line-height: 1.5;
-            display: flex;
-            align-items: flex-start;
-            border: 1px solid #E5E5E5;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .assistant-message .list-emoji {
-            margin-right: 10px;
-            font-size: 16px;
-            margin-top: 1px;
-            flex-shrink: 0;
-        }
-        
-        .assistant-message .question-list li {
-            border-left-color: #E73137;
-            background: #FFF5F5;
-        }
-        
-        .assistant-message .task-list li {
-            border-left-color: #E73137;
-            background: #FFFFFF;
         }
         
         .feedback-container {
             margin-top: 10px;
             padding: 10px;
-            background-color: transparent;
+            background-color: transparent; /* Changed from #EEEDE9 to transparent */
             border-radius: 10px;
-            border: none;
+            border: none; /* Remove any potential border */
         }
         
         .feedback-thankyou {
-            color: #E73137;
+            color: #00A972;
             font-weight: bold;
             margin-top: 8px;
         }
@@ -320,13 +149,12 @@ class StreamlitChatbot:
         }
         
         .typing-indicator {
-            background-color: #F8F9FA;
-            color: #2C3E50;
+            background-color: #2D4550;
+            color: #EEEDE9;
             padding: 10px 15px;
             border-radius: 20px;
             margin: 10px 0;
             font-style: italic;
-            border: 1px solid #E5E5E5;
         }
         
         /* Fixed bottom input bar */
@@ -335,9 +163,9 @@ class StreamlitChatbot:
             bottom: 0;
             left: 0;
             right: 0;
-            background-color: #FFFFFF;
+            background-color: #F9F7F4;
             padding: 15px 20px;
-            border-top: 2px solid #E73137;
+            border-top: 2px solid #EEEDE9;
             z-index: 1000;
             box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
         }
@@ -348,17 +176,17 @@ class StreamlitChatbot:
         }
         
         .info-note {
-            background-color: rgba(231, 49, 55, 0.1);
-            border-left: 4px solid #E73137;
+            background-color: #EEEDE9;
+            border-left: 4px solid #1B3139;
             padding: 12px 16px;
-            margin: 15px 0 -10px 0;
+            margin: 15px 0 -10px 0; /* Changed bottom margin to negative to pull content up */
             border-radius: 6px;
             font-size: 14px;
-            color: #2C3E50;
+            color: #1B3139;
         }
         
         .chat-area {
-            margin-top: -5px;
+            margin-top: -5px; /* Negative margin to pull chat area up closer to info note */
         }
         
         /* Aggressive targeting of the gap after info note */
@@ -491,251 +319,17 @@ class StreamlitChatbot:
         
         threading.Thread(target=upsert_conversation, args=(st.session_state.chat_history, st.session_state.conversation_log_id, st.session_state.response_count)).start()
     
-    def _format_message_content(self, content):
-        """Format handyman response with consistent structure and simple emojis"""
-        if not content:
-            return content
-        
-        # Check if this looks like a handyman response
-        if self._is_handyman_response(content):
-            return self._format_handyman_response(content)
-        else:
-            # Fall back to general formatting for other types of responses
-            return self._format_general_content(content)
-    
-    def _is_handyman_response(self, content):
-        """Check if content follows the standard handyman response format"""
-        # Make the check more flexible
-        has_time = re.search(r'estimated\s+time:', content, re.IGNORECASE) is not None
-        has_confidence = re.search(r'confidence:', content, re.IGNORECASE) is not None
-        has_summary = re.search(r'schedule\s+summary:', content, re.IGNORECASE) is not None
-        
-        return has_time and has_confidence and has_summary
-    
-    def _format_handyman_response(self, content):
-        """Format handyman response with enhanced visual structure"""
-        import re
-        
-        # Extract components using more flexible regex patterns
-        time_match = re.search(r'Estimated time:\s*(.+?)(?=\n|$)', content, re.IGNORECASE)
-        confidence_match = re.search(r'Confidence:\s*(.+?)(?=\n|$)', content, re.IGNORECASE)
-        
-        # More flexible pattern for schedule summary
-        summary_match = re.search(r'Schedule Summary:\s*\n((?:\s*-\s*.+(?:\n|$))*)', content, re.IGNORECASE | re.MULTILINE)
-        
-        # More flexible pattern for questions
-        questions_match = re.search(r'To improve this estimate[^:]*:\s*\n((?:\s*-\s*.+(?:\n|$))*)', content, re.IGNORECASE | re.MULTILINE | re.DOTALL)
-        
-        html_parts = []
-        
-        # Header section with time and confidence
-        if time_match or confidence_match:
-            html_parts.append('<div class="summary-header">')
-            
-            if time_match:
-                html_parts.append('<div class="estimate-row">')
-                html_parts.append('<span class="estimate-emoji">⏱️</span>')
-                html_parts.append('<span class="estimate-label">Estimated time:</span>')
-                html_parts.append(f'<span>{self._escape_html(time_match.group(1).strip())}</span>')
-                html_parts.append('</div>')
-            
-            if confidence_match:
-                confidence = confidence_match.group(1).strip().lower()
-                badge_class = "confidence-badge"
-                if 'low' in confidence:
-                    badge_class += " low"
-                elif 'high' in confidence:
-                    badge_class += " high"
-                
-                html_parts.append('<div class="estimate-row">')
-                html_parts.append('<span class="estimate-emoji">🎯</span>')
-                html_parts.append('<span class="estimate-label">Confidence:</span>')
-                html_parts.append(f'<span class="{badge_class}">{self._escape_html(confidence_match.group(1).strip())}</span>')
-                html_parts.append('</div>')
-            
-            html_parts.append('</div>')
-        
-        # Schedule Summary - always as single bullet point
-        if summary_match:
-            html_parts.append('<div class="section-header">')
-            html_parts.append('<span class="section-emoji">📋</span>')
-            html_parts.append('<span>Schedule Summary</span>')
-            html_parts.append('</div>')
-            html_parts.append('<ul class="enhanced-list task-list">')
-            
-            # Combine all summary items into one
-            summary_text = summary_match.group(1).strip()
-            # Remove bullet points and newlines, join with commas
-            summary_items = []
-            for line in summary_text.split('\n'):
-                line = line.strip()
-                if line and line.startswith('- '):
-                    summary_items.append(line[2:].strip())  # Remove '- ' prefix
-            
-            if summary_items:
-                combined_summary = ', '.join(summary_items)
-                html_parts.append('<li>')
-                html_parts.append('<span class="list-emoji">🔧</span>')
-                html_parts.append(f'<span>{self._escape_html(combined_summary)}</span>')
-                html_parts.append('</li>')
-            
-            html_parts.append('</ul>')
-        
-        # Questions section
-        if questions_match:
-            html_parts.append('<div class="section-header">')
-            html_parts.append('<span class="section-emoji">❓</span>')
-            html_parts.append('<span>To improve this estimate, please answer the following</span>')
-            html_parts.append('</div>')
-            html_parts.append('<ul class="enhanced-list question-list">')
-            
-            questions_text = questions_match.group(1).strip()
-            for line in questions_text.split('\n'):
-                line = line.strip()
-                if line and line.startswith('- '):
-                    question = line[2:].strip()  # Remove '- ' prefix
-                    if question:
-                        html_parts.append('<li>')
-                        html_parts.append('<span class="list-emoji">💭</span>')
-                        html_parts.append(f'<span>{self._escape_html(question)}</span>')
-                        html_parts.append('</li>')
-            
-            html_parts.append('</ul>')
-        
-        return ''.join(html_parts)
-    
-    def _format_general_content(self, content):
-        """Format general content (non-handyman responses)"""
-        # Split content into paragraphs first
-        paragraphs = content.split('\n\n')
-        formatted_paragraphs = []
-        
-        for paragraph in paragraphs:
-            if not paragraph.strip():
-                continue
-                
-            # Handle different content types within each paragraph
-            formatted_paragraph = self._format_paragraph(paragraph.strip())
-            formatted_paragraphs.append(formatted_paragraph)
-        
-        return '<br><br>'.join(formatted_paragraphs)
-    
-    def _format_paragraph(self, paragraph):
-        """Format individual paragraph with proper markup"""
-        # Handle code blocks (triple backticks)
-        if '```' in paragraph:
-            parts = paragraph.split('```')
-            formatted_parts = []
-            
-            for i, part in enumerate(parts):
-                if i % 2 == 0:  # Regular text
-                    if part.strip():
-                        formatted_parts.append(self._format_inline_text(part.strip()))
-                else:  # Code block
-                    if part.strip():
-                        # Extract language if specified
-                        lines = part.strip().split('\n')
-                        if len(lines) > 1 and not lines[0].strip().startswith(' '):
-                            # First line might be language
-                            code_content = '\n'.join(lines[1:]) if len(lines) > 1 else lines[0]
-                        else:
-                            code_content = part.strip()
-                        formatted_parts.append(f'<pre><code>{self._escape_html(code_content)}</code></pre>')
-            
-            return ''.join(formatted_parts)
-        
-        # Handle bullet points and numbered lists
-        lines = paragraph.split('\n')
-        if len(lines) > 1:
-            # Check if this looks like a list
-            list_pattern = re.compile(r'^[\s]*[•\-\*]\s+|^\d+\.\s+')
-            if any(list_pattern.match(line) for line in lines if line.strip()):
-                formatted_lines = []
-                in_list = False
-                list_type = None
-                
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
-                        
-                    bullet_match = re.match(r'^[•\-\*]\s+(.+)', line)
-                    number_match = re.match(r'^\d+\.\s+(.+)', line)
-                    
-                    if bullet_match:
-                        if not in_list or list_type != 'ul':
-                            if in_list:
-                                formatted_lines.append(f'</{list_type}>')
-                            formatted_lines.append('<ul>')
-                            in_list = True
-                            list_type = 'ul'
-                        formatted_lines.append(f'<li>{self._format_inline_text(bullet_match.group(1))}</li>')
-                    elif number_match:
-                        if not in_list or list_type != 'ol':
-                            if in_list:
-                                formatted_lines.append(f'</{list_type}>')
-                            formatted_lines.append('<ol>')
-                            in_list = True
-                            list_type = 'ol'
-                        formatted_lines.append(f'<li>{self._format_inline_text(number_match.group(1))}</li>')
-                    else:
-                        if in_list:
-                            formatted_lines.append(f'</{list_type}>')
-                            in_list = False
-                            list_type = None
-                        formatted_lines.append(f'<p>{self._format_inline_text(line)}</p>')
-                
-                if in_list:
-                    formatted_lines.append(f'</{list_type}>')
-                
-                return ''.join(formatted_lines)
-        
-        # Regular paragraph - split by single newlines for line breaks
-        lines = paragraph.split('\n')
-        formatted_lines = [self._format_inline_text(line.strip()) for line in lines if line.strip()]
-        return '<p>' + '<br>'.join(formatted_lines) + '</p>'
-    
-    def _format_inline_text(self, text):
-        """Format inline text elements like bold, italic, code spans"""
-        if not text:
-            return text
-            
-        # Handle inline code (single backticks)
-        text = re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
-        
-        # Handle bold (**text** or __text__)
-        text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
-        text = re.sub(r'__(.+?)__', r'<strong>\1</strong>', text)
-        
-        # Handle italic (*text* or _text_) - but not if already in strong tags
-        text = re.sub(r'(?<!</?strong>)\*([^*]+)\*(?!</?strong>)', r'<em>\1</em>', text)
-        text = re.sub(r'(?<!</?strong>)_([^_]+)_(?!</?strong>)', r'<em>\1</em>', text)
-        
-        return text
-    
-    def _escape_html(self, text):
-        """Escape HTML special characters"""
-        return (text.replace('&', '&amp;')
-                   .replace('<', '&lt;')
-                   .replace('>', '&gt;')
-                   .replace('"', '&quot;')
-                   .replace("'", '&#x27;'))
-    
     def _render_message(self, message, index):
-        """Render a single message with appropriate styling and improved formatting"""
+        """Render a single message with appropriate styling"""
         if message['role'] == 'user':
             st.markdown(f"""
             <div class="chat-message user-message">
-                {self._escape_html(message['content'])}
+                {message['content']}
             </div>
             """, unsafe_allow_html=True)
         else:  # assistant message
-            # Format the content for better readability
-            formatted_content = self._format_message_content(message['content'])
-            
-            # Debug: Print the formatted content to see what we're generating
-            print(f"DEBUG - Formatted content: {formatted_content[:200]}...")
-            
+            # Convert newlines to HTML line breaks for proper formatting
+            formatted_content = message['content'].replace('\n', '<br>')
             st.markdown(f"""
             <div class="chat-message assistant-message">
                 {formatted_content}
