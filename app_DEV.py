@@ -88,31 +88,29 @@ class StreamlitChatbot:
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
         
-        /* Hide Streamlit's default elements and set full height */
+        /* Remove default Streamlit padding and set full height */
         .main .block-container {
-            padding-top: 1rem;
-            padding-bottom: 0rem;
+            padding-top: 0;
+            padding-bottom: 0;
             max-width: 100%;
             height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         
-        /* Main app container - full viewport height */
-        .app-container {
+        .main-container {
             font-family: 'DM Sans', sans-serif;
             background-color: #F9F7F4;
             height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
         }
         
-        /* Fixed header section */
-        .fixed-header {
-            flex-shrink: 0;
+        /* Fixed header */
+        .chat-header {
             background-color: #F9F7F4;
             padding: 20px;
-            border-bottom: 2px solid #EEEDE9;
-            z-index: 100;
+            flex-shrink: 0;
         }
         
         .chat-title {
@@ -120,48 +118,46 @@ class StreamlitChatbot:
             font-weight: 700;
             color: #1B3139;
             text-align: center;
-            margin: 0;
+            margin: 0 0 15px 0;
         }
         
         .info-note {
             background-color: #EEEDE9;
             border-left: 4px solid #1B3139;
             padding: 12px 16px;
-            margin: 15px 0 0 0;
             border-radius: 6px;
             font-size: 16px;
             color: #1B3139;
+            margin: 0;
         }
         
-        /* Scrollable chat container */
-        .chat-container {
+        /* Scrollable chat area */
+        .chat-messages-container {
             flex: 1;
             overflow-y: auto;
             padding: 20px;
-            background-color: #F9F7F4;
+            margin: 20px;
             border: 2px solid #EEEDE9;
             border-radius: 15px;
-            margin: 20px;
-            margin-top: 0;
-            margin-bottom: 0;
+            background-color: #F9F7F4;
         }
         
-        /* Custom scrollbar styling */
-        .chat-container::-webkit-scrollbar {
+        /* Custom scrollbar */
+        .chat-messages-container::-webkit-scrollbar {
             width: 8px;
         }
         
-        .chat-container::-webkit-scrollbar-track {
+        .chat-messages-container::-webkit-scrollbar-track {
             background: #EEEDE9;
             border-radius: 4px;
         }
         
-        .chat-container::-webkit-scrollbar-thumb {
+        .chat-messages-container::-webkit-scrollbar-thumb {
             background: #1B3139;
             border-radius: 4px;
         }
         
-        .chat-container::-webkit-scrollbar-thumb:hover {
+        .chat-messages-container::-webkit-scrollbar-thumb:hover {
             background: #2D4550;
         }
         
@@ -205,13 +201,12 @@ class StreamlitChatbot:
             font-size: 16px;
         }
         
-        /* Fixed bottom input bar */
-        .fixed-bottom-input {
-            flex-shrink: 0;
+        /* Fixed bottom input */
+        .chat-input-container {
             background-color: #F9F7F4;
             padding: 15px 20px;
             border-top: 2px solid #EEEDE9;
-            z-index: 100;
+            flex-shrink: 0;
         }
         
         .stButton > button {
@@ -237,11 +232,6 @@ class StreamlitChatbot:
         /* Increase font size for text areas */
         .stTextArea textarea {
             font-size: 16px !important;
-        }
-        
-        /* Hide Streamlit's main scrollbar */
-        .main {
-            overflow: hidden;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -477,12 +467,12 @@ class StreamlitChatbot:
     
     def render(self):
         """Main render method for the chatbot interface"""
-        # Create the main app container
-        st.markdown('<div class="app-container">', unsafe_allow_html=True)
+        # Apply the main container styling
+        st.markdown('<div class="main-container">', unsafe_allow_html=True)
         
         # Fixed header section
         st.markdown('''
-        <div class="fixed-header">
+        <div class="chat-header">
             <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
             <div class="info-note">
                 💬 Ask the rep below for handyman job information and estimates.
@@ -490,17 +480,25 @@ class StreamlitChatbot:
         </div>
         ''', unsafe_allow_html=True)
         
-        # Scrollable chat container
-        st.markdown('<div class="chat-container" id="chat-container">', unsafe_allow_html=True)
+        # Scrollable chat messages container
+        st.markdown('<div class="chat-messages-container">', unsafe_allow_html=True)
         
         # Display chat history
         for i, message in enumerate(st.session_state.chat_history):
             self._render_message(message, i)
         
-        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
+        # If no messages, show a placeholder
+        if len(st.session_state.chat_history) == 0:
+            st.markdown('''
+            <div style="text-align: center; color: #888; font-style: italic; padding: 40px;">
+                Start a conversation by typing your message below...
+            </div>
+            ''', unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-messages-container
         
         # Fixed input section at bottom
-        st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
+        st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
         
         # Create columns for chat input and clear button
         input_col, clear_col = st.columns([8, 1])
@@ -515,21 +513,8 @@ class StreamlitChatbot:
         with clear_col:
             clear_button = st.button("Clear", use_container_width=True)
             
-        st.markdown('</div>', unsafe_allow_html=True)  # Close fixed-bottom-input
-        st.markdown('</div>', unsafe_allow_html=True)  # Close app-container
-        
-        # Add JavaScript to auto-scroll to bottom when new messages are added
-        if len(st.session_state.chat_history) > 0:
-            st.markdown("""
-            <script>
-            setTimeout(function() {
-                var chatContainer = document.getElementById('chat-container');
-                if (chatContainer) {
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-            }, 100);
-            </script>
-            """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-input-container
+        st.markdown('</div>', unsafe_allow_html=True)  # Close main-container
         
         # Handle button clicks
         if clear_button:
