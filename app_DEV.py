@@ -88,11 +88,25 @@ class StreamlitChatbot:
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
         
-        /* Reset default Streamlit styling */
+        /* Disable page scrolling completely */
+        html, body {
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .main {
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Reset default Streamlit styling and create fixed layout */
         .main .block-container {
             padding-top: 1rem;
             padding-bottom: 0rem;
             max-width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         
         .main-container {
@@ -118,15 +132,26 @@ class StreamlitChatbot:
             color: #1B3139;
         }
         
-        /* Scrollable chat container */
+        /* Container that holds the scrollable chat */
+        .chat-wrapper {
+            flex: 1;
+            min-height: 0;
+            margin: 20px 0;
+        }
+        
+        /* Scrollable chat container - FIXED HEIGHT */
         .scrollable-chat {
-            height: 400px;
+            height: 60vh;
             overflow-y: auto;
             border: 2px solid #EEEDE9;
             border-radius: 15px;
             padding: 20px;
-            margin: 20px 0;
             background-color: #F9F7F4;
+        }
+        
+        /* Force all Streamlit elements inside scrollable-chat to stay contained */
+        .scrollable-chat > div {
+            max-height: none !important;
         }
         
         /* Custom scrollbar styling */
@@ -208,6 +233,7 @@ class StreamlitChatbot:
             background-color: #F9F7F4;
             padding: 15px 0;
             border-top: 2px solid #EEEDE9;
+            flex-shrink: 0;
         }
         
         /* Increase font size for text input */
@@ -461,21 +487,26 @@ class StreamlitChatbot:
         </div>
         ''', unsafe_allow_html=True)
         
-        # Scrollable chat container
-        st.markdown('<div class="scrollable-chat">', unsafe_allow_html=True)
-        
-        # Display chat history or placeholder
-        if len(st.session_state.chat_history) == 0:
-            st.markdown('''
-            <div style="text-align: center; color: #888; font-style: italic; padding: 40px 0;">
-                Start a conversation by typing your message below...
-            </div>
-            ''', unsafe_allow_html=True)
-        else:
-            for i, message in enumerate(st.session_state.chat_history):
-                self._render_message(message, i)
-        
-        st.markdown('</div>', unsafe_allow_html=True)  # Close scrollable-chat
+        # Create a scrollable container using Streamlit container
+        chat_container = st.container()
+        with chat_container:
+            st.markdown('<div class="scrollable-chat">', unsafe_allow_html=True)
+            
+            # Display chat history or placeholder
+            if len(st.session_state.chat_history) == 0:
+                st.markdown('''
+                <div style="text-align: center; color: #888; font-style: italic; padding: 40px 0;">
+                    Start a conversation by typing your message below...
+                </div>
+                ''', unsafe_allow_html=True)
+            else:
+                # Create a nested container for the messages
+                messages_container = st.container()
+                with messages_container:
+                    for i, message in enumerate(st.session_state.chat_history):
+                        self._render_message(message, i)
+            
+            st.markdown('</div>', unsafe_allow_html=True)  # Close scrollable-chat
         
         # Fixed input section at bottom
         st.markdown('<div class="input-section">', unsafe_allow_html=True)
