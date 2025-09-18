@@ -88,30 +88,35 @@ class StreamlitChatbot:
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
         
-        /* Disable page scrolling completely */
+        /* Disable page scrolling completely and set full height */
         html, body {
-            overflow: hidden;
-            height: 100vh;
+            overflow: hidden !important;
+            height: 100vh !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         
         .main {
-            height: 100vh;
-            overflow: hidden;
+            height: 100vh !important;
+            overflow: hidden !important;
         }
         
         /* Reset default Streamlit styling and create fixed layout */
         .main .block-container {
-            padding-top: 1rem;
-            padding-bottom: 0rem;
-            max-width: 100%;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
+            padding-top: 1rem !important;
+            padding-bottom: 0rem !important;
+            max-width: 100% !important;
+            height: 100vh !important;
+            display: flex !important;
+            flex-direction: column !important;
         }
         
         .main-container {
             font-family: 'DM Sans', sans-serif;
             background-color: #F9F7F4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         
         .chat-title {
@@ -120,6 +125,7 @@ class StreamlitChatbot:
             color: #1B3139;
             text-align: center;
             margin-bottom: 20px;
+            margin-top: 0;
         }
         
         .info-note {
@@ -132,45 +138,9 @@ class StreamlitChatbot:
             color: #1B3139;
         }
         
-        /* Container that holds the scrollable chat */
-        .chat-wrapper {
-            flex: 1;
-            min-height: 0;
-            margin: 20px 0;
-        }
-        
-        /* Scrollable chat container - FIXED HEIGHT */
-        .scrollable-chat {
-            height: 60vh;
-            overflow-y: auto;
-            border: 2px solid #EEEDE9;
-            border-radius: 15px;
-            padding: 20px;
-            background-color: #F9F7F4;
-        }
-        
-        /* Force all Streamlit elements inside scrollable-chat to stay contained */
-        .scrollable-chat > div {
-            max-height: none !important;
-        }
-        
-        /* Custom scrollbar styling */
-        .scrollable-chat::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        .scrollable-chat::-webkit-scrollbar-track {
-            background: #EEEDE9;
-            border-radius: 4px;
-        }
-        
-        .scrollable-chat::-webkit-scrollbar-thumb {
-            background: #1B3139;
-            border-radius: 4px;
-        }
-        
-        .scrollable-chat::-webkit-scrollbar-thumb:hover {
-            background: #2D4550;
+        /* Make the container with height fill remaining space */
+        div[data-testid="stVerticalBlock"] > div > div > div[data-testid="stVerticalBlock"] {
+            height: calc(100vh - 200px) !important;
         }
         
         .chat-message {
@@ -228,12 +198,22 @@ class StreamlitChatbot:
             font-size: 18px;
         }
         
-        /* Fixed input section */
+        /* Fixed input section at the very bottom */
         .input-section {
-            background-color: #F9F7F4;
-            padding: 15px 0;
-            border-top: 2px solid #EEEDE9;
-            flex-shrink: 0;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            background-color: #F9F7F4 !important;
+            padding: 15px 20px !important;
+            border-top: 2px solid #EEEDE9 !important;
+            z-index: 1000 !important;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1) !important;
+        }
+        
+        /* Add padding to prevent content from being hidden behind fixed input */
+        .main .block-container {
+            padding-bottom: 100px !important;
         }
         
         /* Increase font size for text input */
