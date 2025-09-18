@@ -94,7 +94,7 @@ class StreamlitChatbot:
         }
         
         .chat-title {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: 700;
             color: #1B3139;
             text-align: center;
@@ -102,12 +102,13 @@ class StreamlitChatbot:
         }
         
         .chat-message {
-            padding: 10px 15px;
+            padding: 15px 20px;
             border-radius: 20px;
-            margin: 10px 0;
-            font-size: 16px;
-            line-height: 1.4;
+            margin: 15px 0;
+            font-size: 20px;
+            line-height: 1.5;
             max-width: 80%;
+            font-weight: 500;
         }
         
         .user-message {
@@ -125,21 +126,24 @@ class StreamlitChatbot:
         }
         
         .feedback-container {
-            margin-top: 10px;
-            padding: 10px;
+            margin-top: 15px;
+            padding: 15px;
             background-color: transparent; /* Changed from #EEEDE9 to transparent */
             border-radius: 10px;
             border: none; /* Remove any potential border */
+            font-size: 16px;
         }
         
         .feedback-thankyou {
             color: #00A972;
             font-weight: bold;
             margin-top: 8px;
+            font-size: 16px;
         }
         
         .stButton > button {
             border-radius: 20px;
+            font-size: 16px;
         }
         
         .feedback-buttons {
@@ -151,10 +155,11 @@ class StreamlitChatbot:
         .typing-indicator {
             background-color: #2D4550;
             color: #EEEDE9;
-            padding: 10px 15px;
+            padding: 15px 20px;
             border-radius: 20px;
-            margin: 10px 0;
+            margin: 15px 0;
             font-style: italic;
+            font-size: 18px;
         }
         
         /* Fixed bottom input bar */
@@ -181,7 +186,7 @@ class StreamlitChatbot:
             padding: 12px 16px;
             margin: 15px 0 -10px 0; /* Changed bottom margin to negative to pull content up */
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 16px;
             color: #1B3139;
         }
         
@@ -197,6 +202,16 @@ class StreamlitChatbot:
         /* Target Streamlit's vertical block that comes after info note */
         div[data-testid="stMarkdown"]:has(.info-note) + div {
             margin-top: -30px !important;
+        }
+        
+        /* Increase font size for text input */
+        .stChatInput input {
+            font-size: 18px !important;
+        }
+        
+        /* Increase font size for text areas */
+        .stTextArea textarea {
+            font-size: 16px !important;
         }
         </style>
         """, unsafe_allow_html=True)
