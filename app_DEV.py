@@ -88,29 +88,9 @@ class StreamlitChatbot:
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
         
-        /* Remove default Streamlit padding and set full height */
-        .main .block-container {
-            padding-top: 0;
-            padding-bottom: 0;
-            max-width: 100%;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        
         .main-container {
             font-family: 'DM Sans', sans-serif;
             background-color: #F9F7F4;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        /* Fixed header */
-        .chat-header {
-            background-color: #F9F7F4;
-            padding: 20px;
-            flex-shrink: 0;
         }
         
         .chat-title {
@@ -118,47 +98,7 @@ class StreamlitChatbot:
             font-weight: 700;
             color: #1B3139;
             text-align: center;
-            margin: 0 0 15px 0;
-        }
-        
-        .info-note {
-            background-color: #EEEDE9;
-            border-left: 4px solid #1B3139;
-            padding: 12px 16px;
-            border-radius: 6px;
-            font-size: 16px;
-            color: #1B3139;
-            margin: 0;
-        }
-        
-        /* Scrollable chat area */
-        .chat-messages-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            margin: 20px;
-            border: 2px solid #EEEDE9;
-            border-radius: 15px;
-            background-color: #F9F7F4;
-        }
-        
-        /* Custom scrollbar */
-        .chat-messages-container::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        .chat-messages-container::-webkit-scrollbar-track {
-            background: #EEEDE9;
-            border-radius: 4px;
-        }
-        
-        .chat-messages-container::-webkit-scrollbar-thumb {
-            background: #1B3139;
-            border-radius: 4px;
-        }
-        
-        .chat-messages-container::-webkit-scrollbar-thumb:hover {
-            background: #2D4550;
+            margin-bottom: 20px;
         }
         
         .chat-message {
@@ -201,17 +141,15 @@ class StreamlitChatbot:
             font-size: 16px;
         }
         
-        /* Fixed bottom input */
-        .chat-input-container {
-            background-color: #F9F7F4;
-            padding: 15px 20px;
-            border-top: 2px solid #EEEDE9;
-            flex-shrink: 0;
-        }
-        
         .stButton > button {
             border-radius: 20px;
             font-size: 16px;
+        }
+        
+        .feedback-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
         }
         
         .typing-indicator {
@@ -222,6 +160,50 @@ class StreamlitChatbot:
             margin: 15px 0;
             font-style: italic;
             font-size: 18px;
+        }
+        
+        /* Fixed bottom input bar */
+        .fixed-bottom-input {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #F9F7F4;
+            padding: 15px 20px;
+            border-top: 2px solid #EEEDE9;
+            z-index: 1000;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* Add bottom padding to content so it doesn't get hidden */
+        .content-with-bottom-padding {
+            padding-bottom: 120px;
+        }
+        
+        .info-note {
+            background-color: #EEEDE9;
+            border-left: 4px solid #1B3139;
+            padding: 12px 16px;
+            margin: 15px 0 -10px 0;
+            border-radius: 6px;
+            font-size: 16px;
+            color: #1B3139;
+        }
+        
+        /* Scrollable chat wrapper that fills space between header and input */
+        .chat-wrapper {
+            position: fixed;
+            top: 160px; /* adjust based on title + info note height */
+            bottom: 90px; /* height of input bar */
+            left: 0;
+            right: 0;
+            overflow-y: auto;
+            padding: 0 20px;
+        }
+        
+        .chat-area {
+            display: flex;
+            flex-direction: column;
         }
         
         /* Increase font size for text input */
@@ -253,7 +235,6 @@ class StreamlitChatbot:
                 print(f"🔍 Feedback data: {feedback_data}")
                 print("🚀 Connecting to Databricks...")
                 
-                # Import databricks.sql here to ensure it's available
                 from databricks import sql
                 
                 conn = sql.connect(
@@ -264,14 +245,10 @@ class StreamlitChatbot:
                 
                 cursor = conn.cursor()
                 
-                # Debug: Check if we can connect and see the table
-                print("🔍 Testing connection...")
                 cursor.execute("SELECT 1 as test")
                 result = cursor.fetchone()
                 print(f"✅ Connection test result: {result}")
                 
-                # Insert the feedback
-                print("📝 Inserting feedback...")
                 cursor.execute("""
                     INSERT INTO ai_squad_np.default.handyman_feedback
                     (id, timestamp, message, feedback, comment)
@@ -284,7 +261,6 @@ class StreamlitChatbot:
                     feedback_data['comment']
                 ))
                 
-                # Commit the transaction
                 conn.commit()
                 print("✅ Feedback committed to database")
                 
@@ -298,7 +274,6 @@ class StreamlitChatbot:
                 print("🔍 Full traceback:")
                 traceback.print_exc()
         
-        # Run in background thread
         threading.Thread(target=insert_feedback).start()
 
     def _save_conversation_log(self):
@@ -345,7 +320,6 @@ class StreamlitChatbot:
                 print(f"⚠️ Could not upsert conversation: {e}")
                 traceback.print_exc()
 
-        # Use session state to track this session's unique log id
         if st.session_state.conversation_log_id is None:
             new_id = str(uuid.uuid4())
             st.session_state.conversation_log_id = new_id
@@ -363,7 +337,6 @@ class StreamlitChatbot:
             </div>
             """, unsafe_allow_html=True)
         else:  # assistant message
-            # Convert newlines to HTML line breaks for proper formatting
             formatted_content = message['content'].replace('\n', '<br>')
             st.markdown(f"""
             <div class="chat-message assistant-message">
@@ -371,7 +344,6 @@ class StreamlitChatbot:
             </div>
             """, unsafe_allow_html=True)
             
-            # Add feedback UI for the last assistant message
             if index == len(st.session_state.chat_history) - 1:
                 self._render_feedback_ui(index)
     
@@ -384,7 +356,6 @@ class StreamlitChatbot:
         
         st.markdown('<div class="feedback-container">', unsafe_allow_html=True)
         
-        # Feedback buttons
         col1, col2, col3 = st.columns([1, 1, 6])
         
         with col1:
@@ -399,13 +370,11 @@ class StreamlitChatbot:
                 st.session_state.feedback_selection[str(message_index)] = 'thumbs-down'
                 st.rerun()
         
-        # Show selected feedback and form ONLY if a thumb button was pressed
         selected_feedback = st.session_state.feedback_selection.get(str(message_index))
         if selected_feedback:
             feedback_text = "👍 Positive" if selected_feedback == 'thumbs-up' else "👎 Negative"
             st.write(f"Selected: {feedback_text}")
             
-            # Comment box - only show after selection
             comment_key = f"comment_{message_index}"
             comment = st.text_area(
                 "Optional comment:",
@@ -414,7 +383,6 @@ class StreamlitChatbot:
                 placeholder="Share your thoughts about this response..."
             )
             
-            # Submit button - only show after selection
             submit_key = f"submit_{message_index}"
             if st.button("Submit Feedback", key=submit_key, type="primary"):
                 self._handle_feedback_submission(message_index, comment)
@@ -424,10 +392,8 @@ class StreamlitChatbot:
     def _handle_feedback_submission(self, message_index, comment):
         """Handle feedback submission"""
         try:
-            # Get feedback selection
             feedback_value = st.session_state.feedback_selection.get(str(message_index), 'none')
             
-            # Prepare feedback data with timezone-aware datetime
             feedback_data = {
                 'id': str(uuid.uuid4()),
                 'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -438,13 +404,10 @@ class StreamlitChatbot:
             
             print(f"🔍 Submitting feedback: {feedback_data}")
             
-            # Save to database
             self._save_feedback_to_database(feedback_data)
             
-            # Mark as submitted
             st.session_state.feedback_submitted.add(message_index)
             
-            # Show success message
             st.success("Thank you for your feedback!")
             st.rerun()
             
@@ -458,53 +421,33 @@ class StreamlitChatbot:
         st.session_state.feedback_selection = {}
         st.session_state.feedback_comments = {}
         st.session_state.feedback_submitted = set()
-        # Reset conversation_log_id to new UUID for new conversation
         st.session_state.conversation_log_id = None
-        # Increment counter to force input widget to refresh
         st.session_state.input_key_counter += 1
         st.session_state.response_count = 0
         st.rerun()
     
     def render(self):
         """Main render method for the chatbot interface"""
-        # Apply the main container styling
-        st.markdown('<div class="main-container">', unsafe_allow_html=True)
-        
-        # Fixed header section
         st.markdown('''
-        <div class="chat-header">
-            <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
-            <div class="info-note">
-                💬 Ask the rep below for handyman job information and estimates.
-            </div>
+        <div class="content-with-bottom-padding">
+        <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
+        <div class="info-note">
+            💬 Ask the rep below for handyman job information and estimates.
+        </div>
         </div>
         ''', unsafe_allow_html=True)
         
-        # Scrollable chat messages container
-        st.markdown('<div class="chat-messages-container">', unsafe_allow_html=True)
+        st.markdown('<div class="chat-wrapper"><div class="chat-area">', unsafe_allow_html=True)
+        chat_container = st.container()
+        with chat_container:
+            for i, message in enumerate(st.session_state.chat_history):
+                self._render_message(message, i)
+        st.markdown('</div></div>', unsafe_allow_html=True)
         
-        # Display chat history
-        for i, message in enumerate(st.session_state.chat_history):
-            self._render_message(message, i)
-        
-        # If no messages, show a placeholder
-        if len(st.session_state.chat_history) == 0:
-            st.markdown('''
-            <div style="text-align: center; color: #888; font-style: italic; padding: 40px;">
-                Start a conversation by typing your message below...
-            </div>
-            ''', unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-messages-container
-        
-        # Fixed input section at bottom
-        st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
-        
-        # Create columns for chat input and clear button
+        st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
         input_col, clear_col = st.columns([8, 1])
         
         with input_col:
-            # Use st.chat_input for built-in Enter key support
             user_input = st.chat_input(
                 placeholder="Type your message here... (Press Enter to send)",
                 key=f"chat_input_{st.session_state.input_key_counter}"
@@ -513,50 +456,35 @@ class StreamlitChatbot:
         with clear_col:
             clear_button = st.button("Clear", use_container_width=True)
             
-        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-input-container
-        st.markdown('</div>', unsafe_allow_html=True)  # Close main-container
+        st.markdown('</div>', unsafe_allow_html=True)
         
-        # Handle button clicks
         if clear_button:
             self._clear_chat()
         
         if user_input and user_input.strip():
-            # Add user message
             st.session_state.chat_history.append({
                 'role': 'user', 
                 'content': user_input.strip()
             })
             
-            # Increment counter to clear input field
             st.session_state.input_key_counter += 1
             
-            # Show typing indicator
             with st.spinner("Thinking..."):
                 try:
-                    # Get assistant response
                     assistant_response = self._call_model_endpoint(st.session_state.chat_history)
-                    
-                    # Add assistant message
                     st.session_state.chat_history.append({
                         'role': 'assistant',
                         'content': assistant_response
                     })
-
-                    # Save or update conversation log
                     self._save_conversation_log()
-                    
                 except Exception as e:
-                    # Add error message
                     error_message = f'Error: {str(e)}'
                     st.session_state.chat_history.append({
                         'role': 'assistant',
                         'content': error_message
                     })
-
-                    # Save or update conversation log
                     self._save_conversation_log()
             
-            # Rerun to refresh the interface
             st.rerun()
 
 def main():
@@ -568,14 +496,10 @@ def main():
         initial_sidebar_state="collapsed"
     )
     
-    # Initialize chatbot
     endpoint_name = st.secrets.get("DATABRICKS_ENDPOINT_NAME", "your_endpoint_name")
     chatbot = StreamlitChatbot(endpoint_name)
-    
-    # Render the chatbot
     chatbot.render()
 
-# Requirements and setup instructions
 def show_setup_instructions():
     """Show setup instructions in the sidebar"""
     with st.sidebar:
