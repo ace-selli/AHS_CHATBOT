@@ -487,11 +487,8 @@ class StreamlitChatbot:
         </div>
         ''', unsafe_allow_html=True)
         
-        # Create a scrollable container using Streamlit container
-        chat_container = st.container()
-        with chat_container:
-            st.markdown('<div class="scrollable-chat">', unsafe_allow_html=True)
-            
+        # Use Streamlit's container with height parameter for scrollable area
+        with st.container(height=400):
             # Display chat history or placeholder
             if len(st.session_state.chat_history) == 0:
                 st.markdown('''
@@ -500,13 +497,8 @@ class StreamlitChatbot:
                 </div>
                 ''', unsafe_allow_html=True)
             else:
-                # Create a nested container for the messages
-                messages_container = st.container()
-                with messages_container:
-                    for i, message in enumerate(st.session_state.chat_history):
-                        self._render_message(message, i)
-            
-            st.markdown('</div>', unsafe_allow_html=True)  # Close scrollable-chat
+                for i, message in enumerate(st.session_state.chat_history):
+                    self._render_message(message, i)
         
         # Fixed input section at bottom
         st.markdown('<div class="input-section">', unsafe_allow_html=True)
