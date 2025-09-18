@@ -88,9 +88,31 @@ class StreamlitChatbot:
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
         
-        .main-container {
+        /* Hide Streamlit's default elements and set full height */
+        .main .block-container {
+            padding-top: 1rem;
+            padding-bottom: 0rem;
+            max-width: 100%;
+            height: 100vh;
+        }
+        
+        /* Main app container - full viewport height */
+        .app-container {
             font-family: 'DM Sans', sans-serif;
             background-color: #F9F7F4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Fixed header section */
+        .fixed-header {
+            flex-shrink: 0;
+            background-color: #F9F7F4;
+            padding: 20px;
+            border-bottom: 2px solid #EEEDE9;
+            z-index: 100;
         }
         
         .chat-title {
@@ -98,7 +120,49 @@ class StreamlitChatbot:
             font-weight: 700;
             color: #1B3139;
             text-align: center;
-            margin-bottom: 20px;
+            margin: 0;
+        }
+        
+        .info-note {
+            background-color: #EEEDE9;
+            border-left: 4px solid #1B3139;
+            padding: 12px 16px;
+            margin: 15px 0 0 0;
+            border-radius: 6px;
+            font-size: 16px;
+            color: #1B3139;
+        }
+        
+        /* Scrollable chat container */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background-color: #F9F7F4;
+            border: 2px solid #EEEDE9;
+            border-radius: 15px;
+            margin: 20px;
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+        
+        /* Custom scrollbar styling */
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .chat-container::-webkit-scrollbar-track {
+            background: #EEEDE9;
+            border-radius: 4px;
+        }
+        
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #1B3139;
+            border-radius: 4px;
+        }
+        
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: #2D4550;
         }
         
         .chat-message {
@@ -128,9 +192,9 @@ class StreamlitChatbot:
         .feedback-container {
             margin-top: 15px;
             padding: 15px;
-            background-color: transparent; /* Changed from #EEEDE9 to transparent */
+            background-color: transparent;
             border-radius: 10px;
-            border: none; /* Remove any potential border */
+            border: none;
             font-size: 16px;
         }
         
@@ -141,15 +205,18 @@ class StreamlitChatbot:
             font-size: 16px;
         }
         
+        /* Fixed bottom input bar */
+        .fixed-bottom-input {
+            flex-shrink: 0;
+            background-color: #F9F7F4;
+            padding: 15px 20px;
+            border-top: 2px solid #EEEDE9;
+            z-index: 100;
+        }
+        
         .stButton > button {
             border-radius: 20px;
             font-size: 16px;
-        }
-        
-        .feedback-buttons {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
         }
         
         .typing-indicator {
@@ -162,48 +229,6 @@ class StreamlitChatbot:
             font-size: 18px;
         }
         
-        /* Fixed bottom input bar */
-        .fixed-bottom-input {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: #F9F7F4;
-            padding: 15px 20px;
-            border-top: 2px solid #EEEDE9;
-            z-index: 1000;
-            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
-        }
-        
-        /* Add bottom padding to content so it doesn't get hidden */
-        .content-with-bottom-padding {
-            padding-bottom: 120px;
-        }
-        
-        .info-note {
-            background-color: #EEEDE9;
-            border-left: 4px solid #1B3139;
-            padding: 12px 16px;
-            margin: 15px 0 -10px 0; /* Changed bottom margin to negative to pull content up */
-            border-radius: 6px;
-            font-size: 16px;
-            color: #1B3139;
-        }
-        
-        .chat-area {
-            margin-top: -5px; /* Negative margin to pull chat area up closer to info note */
-        }
-        
-        /* Aggressive targeting of the gap after info note */
-        .info-note + div {
-            margin-top: -20px !important;
-        }
-        
-        /* Target Streamlit's vertical block that comes after info note */
-        div[data-testid="stMarkdown"]:has(.info-note) + div {
-            margin-top: -30px !important;
-        }
-        
         /* Increase font size for text input */
         .stChatInput input {
             font-size: 18px !important;
@@ -212,6 +237,11 @@ class StreamlitChatbot:
         /* Increase font size for text areas */
         .stTextArea textarea {
             font-size: 16px !important;
+        }
+        
+        /* Hide Streamlit's main scrollbar */
+        .main {
+            overflow: hidden;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -447,28 +477,29 @@ class StreamlitChatbot:
     
     def render(self):
         """Main render method for the chatbot interface"""
-        # Title, info note, and chat area in single container to eliminate all gaps
+        # Create the main app container
+        st.markdown('<div class="app-container">', unsafe_allow_html=True)
+        
+        # Fixed header section
         st.markdown('''
-        <div class="content-with-bottom-padding">
-        <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
-        <div class="info-note">
-            💬 Ask the rep below for handyman job information and estimates.
+        <div class="fixed-header">
+            <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
+            <div class="info-note">
+                💬 Ask the rep below for handyman job information and estimates.
+            </div>
         </div>
-        <div class="chat-area">
         ''', unsafe_allow_html=True)
         
-        chat_container = st.container()
+        # Scrollable chat container
+        st.markdown('<div class="chat-container" id="chat-container">', unsafe_allow_html=True)
         
-        with chat_container:
-            # Display chat history
-            for i, message in enumerate(st.session_state.chat_history):
-                self._render_message(message, i)
+        # Display chat history
+        for i, message in enumerate(st.session_state.chat_history):
+            self._render_message(message, i)
         
+        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
         
-        st.markdown('</div>', unsafe_allow_html=True)  # Close chat-area
-        st.markdown('</div>', unsafe_allow_html=True)  # Close content-with-bottom-padding
-        
-        # Fixed input section at bottom of screen
+        # Fixed input section at bottom
         st.markdown('<div class="fixed-bottom-input">', unsafe_allow_html=True)
         
         # Create columns for chat input and clear button
@@ -484,7 +515,21 @@ class StreamlitChatbot:
         with clear_col:
             clear_button = st.button("Clear", use_container_width=True)
             
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)  # Close fixed-bottom-input
+        st.markdown('</div>', unsafe_allow_html=True)  # Close app-container
+        
+        # Add JavaScript to auto-scroll to bottom when new messages are added
+        if len(st.session_state.chat_history) > 0:
+            st.markdown("""
+            <script>
+            setTimeout(function() {
+                var chatContainer = document.getElementById('chat-container');
+                if (chatContainer) {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+            }, 100);
+            </script>
+            """, unsafe_allow_html=True)
         
         # Handle button clicks
         if clear_button:
