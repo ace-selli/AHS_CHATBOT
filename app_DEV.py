@@ -88,35 +88,27 @@ class StreamlitChatbot:
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
         
-        /* Disable page scrolling completely and set full height */
+        /* Remove page scrolling and set viewport sizing */
         html, body {
-            overflow: hidden !important;
-            height: 100vh !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            height: 100vh;
+            overflow: hidden;
         }
         
         .main {
-            height: 100vh !important;
-            overflow: hidden !important;
+            height: 100vh;
+            overflow: hidden;
         }
         
-        /* Reset default Streamlit styling and create fixed layout */
         .main .block-container {
-            padding-top: 1rem !important;
-            padding-bottom: 120px !important;
-            max-width: 100% !important;
-            height: 100vh !important;
-            display: flex !important;
-            flex-direction: column !important;
+            padding-top: 1rem;
+            padding-bottom: 120px;
+            max-width: 100%;
+            height: 100vh;
         }
         
         .main-container {
             font-family: 'DM Sans', sans-serif;
             background-color: #F9F7F4;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
         }
         
         .chat-title {
@@ -138,16 +130,10 @@ class StreamlitChatbot:
             color: #1B3139;
         }
         
-        /* Dynamic height calculation for chat container */
-        div[data-testid="stVerticalBlock"]:has([data-testid="stContainer"]) {
-            flex: 1 !important;
-            min-height: 0 !important;
-        }
-        
-        /* Make the scrollable container dynamically sized */
+        /* Make the scrollable container responsive to viewport height */
         [data-testid="stContainer"] {
-            height: calc(100vh - 250px) !important;
-            min-height: 300px !important;
+            height: 60vh !important;
+            max-height: 60vh !important;
         }
         
         .chat-message {
@@ -205,17 +191,17 @@ class StreamlitChatbot:
             font-size: 18px;
         }
         
-        /* Fixed input section at the very bottom */
-        .input-section {
-            position: fixed !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            background-color: #F9F7F4 !important;
-            padding: 15px 20px !important;
-            border-top: 2px solid #EEEDE9 !important;
-            z-index: 1000 !important;
-            box-shadow: 0 -4px 12px rgba(0,0,0,0.1) !important;
+        /* Fixed input at bottom */
+        .input-fixed {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #F9F7F4;
+            padding: 15px 20px;
+            border-top: 2px solid #EEEDE9;
+            z-index: 1000;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
         }
         
         /* Increase font size for text input */
@@ -228,9 +214,26 @@ class StreamlitChatbot:
             font-size: 16px !important;
         }
         
-        /* Ensure feedback elements stay within the scrollable area */
-        .feedback-container .stColumns {
-            z-index: auto !important;
+        /* Use CSS media queries for responsive height */
+        @media (max-height: 600px) {
+            [data-testid="stContainer"] {
+                height: 50vh !important;
+                max-height: 50vh !important;
+            }
+        }
+        
+        @media (min-height: 800px) {
+            [data-testid="stContainer"] {
+                height: 65vh !important;
+                max-height: 65vh !important;
+            }
+        }
+        
+        @media (min-height: 1000px) {
+            [data-testid="stContainer"] {
+                height: 70vh !important;
+                max-height: 70vh !important;
+            }
         }
         </style>
         """, unsafe_allow_html=True)
@@ -474,10 +477,8 @@ class StreamlitChatbot:
         </div>
         ''', unsafe_allow_html=True)
         
-        # Use Streamlit's container with calculated height for scrollable area
-        # Calculate height based on viewport minus header and footer space
-        chat_height = 400  # Base height, will be overridden by CSS
-        with st.container(height=chat_height):
+        # Scrollable chat container with responsive height
+        with st.container(height=400):  # This will be overridden by CSS to be responsive
             # Display chat history or placeholder
             if len(st.session_state.chat_history) == 0:
                 st.markdown('''
@@ -489,10 +490,9 @@ class StreamlitChatbot:
                 for i, message in enumerate(st.session_state.chat_history):
                     self._render_message(message, i)
         
-        # Create a spacer div to push content above the fixed input
-        st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
+        # Fixed input section - simple approach
+        st.markdown('<div class="input-fixed">', unsafe_allow_html=True)
         
-        # Handle input processing (but render input outside of main flow)
         # Create columns for chat input and clear button
         input_col, clear_col = st.columns([8, 1])
         
@@ -505,36 +505,8 @@ class StreamlitChatbot:
         
         with clear_col:
             clear_button = st.button("Clear", use_container_width=True)
-        
-        # Apply fixed positioning to the input section after rendering
-        st.markdown('''
-        <script>
-        // Move the input elements to fixed position
-        setTimeout(function() {
-            var chatInput = document.querySelector('[data-testid="stChatInput"]');
             
-            if (chatInput) {
-                var inputContainer = chatInput.closest('[data-testid="stHorizontalBlock"]');
-                if (inputContainer) {
-                    inputContainer.classList.add('input-section-fixed');
-                }
-            }
-        }, 100);
-        </script>
-        <style>
-        .input-section-fixed {
-            position: fixed !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            background-color: #F9F7F4 !important;
-            padding: 15px 20px !important;
-            border-top: 2px solid #EEEDE9 !important;
-            z-index: 1000 !important;
-            box-shadow: 0 -4px 12px rgba(0,0,0,0.1) !important;
-        }
-        </style>
-        ''', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # Handle button clicks
         if clear_button:
