@@ -474,8 +474,10 @@ class StreamlitChatbot:
         </div>
         ''', unsafe_allow_html=True)
         
-        # Use Streamlit's container with dynamic height for scrollable area
-        with st.container(height=None):  # Let CSS handle the height
+        # Use Streamlit's container with calculated height for scrollable area
+        # Calculate height based on viewport minus header and footer space
+        chat_height = 400  # Base height, will be overridden by CSS
+        with st.container(height=chat_height):
             # Display chat history or placeholder
             if len(st.session_state.chat_history) == 0:
                 st.markdown('''
@@ -510,10 +512,12 @@ class StreamlitChatbot:
         // Move the input elements to fixed position
         setTimeout(function() {
             var chatInput = document.querySelector('[data-testid="stChatInput"]');
-            var clearButton = document.querySelector('button[kind="secondary"]:contains("Clear")');
             
             if (chatInput) {
-                chatInput.parentElement.classList.add('input-section-fixed');
+                var inputContainer = chatInput.closest('[data-testid="stHorizontalBlock"]');
+                if (inputContainer) {
+                    inputContainer.classList.add('input-section-fixed');
+                }
             }
         }, 100);
         </script>
