@@ -104,7 +104,7 @@ class StreamlitChatbot:
         /* Reset default Streamlit styling and create fixed layout */
         .main .block-container {
             padding-top: 1rem !important;
-            padding-bottom: 0rem !important;
+            padding-bottom: 120px !important;
             max-width: 100% !important;
             height: 100vh !important;
             display: flex !important;
@@ -138,9 +138,16 @@ class StreamlitChatbot:
             color: #1B3139;
         }
         
-        /* Make the container with height fill remaining space */
-        div[data-testid="stVerticalBlock"] > div > div > div[data-testid="stVerticalBlock"] {
-            height: calc(100vh - 200px) !important;
+        /* Dynamic height calculation for chat container */
+        div[data-testid="stVerticalBlock"]:has([data-testid="stContainer"]) {
+            flex: 1 !important;
+            min-height: 0 !important;
+        }
+        
+        /* Make the scrollable container dynamically sized */
+        [data-testid="stContainer"] {
+            height: calc(100vh - 250px) !important;
+            min-height: 300px !important;
         }
         
         .chat-message {
@@ -211,11 +218,6 @@ class StreamlitChatbot:
             box-shadow: 0 -4px 12px rgba(0,0,0,0.1) !important;
         }
         
-        /* Add padding to prevent content from being hidden behind fixed input */
-        .main .block-container {
-            padding-bottom: 100px !important;
-        }
-        
         /* Increase font size for text input */
         .stChatInput input {
             font-size: 18px !important;
@@ -224,6 +226,11 @@ class StreamlitChatbot:
         /* Increase font size for text areas */
         .stTextArea textarea {
             font-size: 16px !important;
+        }
+        
+        /* Ensure feedback elements stay within the scrollable area */
+        .feedback-container .stColumns {
+            z-index: auto !important;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -467,8 +474,8 @@ class StreamlitChatbot:
         </div>
         ''', unsafe_allow_html=True)
         
-        # Use Streamlit's container with height parameter for scrollable area
-        with st.container(height=400):
+        # Use Streamlit's container with dynamic height for scrollable area
+        with st.container(height=None):  # Let CSS handle the height
             # Display chat history or placeholder
             if len(st.session_state.chat_history) == 0:
                 st.markdown('''
@@ -480,9 +487,10 @@ class StreamlitChatbot:
                 for i, message in enumerate(st.session_state.chat_history):
                     self._render_message(message, i)
         
-        # Fixed input section at bottom
-        st.markdown('<div class="input-section">', unsafe_allow_html=True)
+        # Create a spacer div to push content above the fixed input
+        st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
         
+        # Handle input processing (but render input outside of main flow)
         # Create columns for chat input and clear button
         input_col, clear_col = st.columns([8, 1])
         
@@ -495,8 +503,34 @@ class StreamlitChatbot:
         
         with clear_col:
             clear_button = st.button("Clear", use_container_width=True)
+        
+        # Apply fixed positioning to the input section after rendering
+        st.markdown('''
+        <script>
+        // Move the input elements to fixed position
+        setTimeout(function() {
+            var chatInput = document.querySelector('[data-testid="stChatInput"]');
+            var clearButton = document.querySelector('button[kind="secondary"]:contains("Clear")');
             
-        st.markdown('</div>', unsafe_allow_html=True)  # Close input-section
+            if (chatInput) {
+                chatInput.parentElement.classList.add('input-section-fixed');
+            }
+        }, 100);
+        </script>
+        <style>
+        .input-section-fixed {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            background-color: #F9F7F4 !important;
+            padding: 15px 20px !important;
+            border-top: 2px solid #EEEDE9 !important;
+            z-index: 1000 !important;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1) !important;
+        }
+        </style>
+        ''', unsafe_allow_html=True)
         
         # Handle button clicks
         if clear_button:
