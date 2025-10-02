@@ -132,8 +132,8 @@ class StreamlitChatbot:
         
         /* Make the scrollable container responsive to viewport height */
         [data-testid="stContainer"] {
-            height: 60vh !important;
-            max-height: 60vh !important;
+            height: calc(100vh - 280px) !important;
+            max-height: calc(100vh - 280px) !important;
         }
         
         .chat-message {
@@ -217,22 +217,22 @@ class StreamlitChatbot:
         /* Use CSS media queries for responsive height */
         @media (max-height: 600px) {
             [data-testid="stContainer"] {
-                height: 50vh !important;
-                max-height: 50vh !important;
+                height: calc(100vh - 250px) !important;
+                max-height: calc(100vh - 250px) !important;
             }
         }
         
         @media (min-height: 800px) {
             [data-testid="stContainer"] {
-                height: 65vh !important;
-                max-height: 65vh !important;
+                height: calc(100vh - 280px) !important;
+                max-height: calc(100vh - 280px) !important;
             }
         }
         
         @media (min-height: 1000px) {
             [data-testid="stContainer"] {
-                height: 70vh !important;
-                max-height: 70vh !important;
+                height: calc(100vh - 280px) !important;
+                max-height: calc(100vh - 280px) !important;
             }
         }
         </style>
@@ -484,7 +484,7 @@ class StreamlitChatbot:
         
         with clear_col:
             st.markdown('<div style="margin-top: 15px;">', unsafe_allow_html=True)
-            clear_button = st.button("Clear", use_container_width=True)
+            clear_button = st.button("New Conversation", use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
         # Scrollable chat container with responsive height
