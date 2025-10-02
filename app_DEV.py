@@ -101,7 +101,7 @@ class StreamlitChatbot:
         
         .main .block-container {
             padding-top: 1rem;
-            padding-bottom: 120px;
+            padding-bottom: 0rem;
             max-width: 100%;
             height: 100vh;
         }
@@ -483,11 +483,12 @@ class StreamlitChatbot:
             ''', unsafe_allow_html=True)
         
         with clear_col:
-            st.markdown('<div style="margin-top: 15px;">', unsafe_allow_html=True)
-            clear_button = st.button("New Conversation", use_container_width=True)
+            st.markdown('<div style="margin-top: 15px; white-space: nowrap;">', unsafe_allow_html=True)
+            clear_button = st.button("New Chat", use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
-        # Scrollable chat container with responsive height
+        # Scrollable chat container with responsive height - remove extra spacing
+        st.markdown('<div style="margin-bottom: 0;">', unsafe_allow_html=True)
         with st.container(height=400):  # This will be overridden by CSS to be responsive
             # Display chat history or placeholder
             if len(st.session_state.chat_history) == 0:
@@ -499,6 +500,7 @@ class StreamlitChatbot:
             else:
                 for i, message in enumerate(st.session_state.chat_history):
                     self._render_message(message, i)
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # Fixed input section - simple approach
         st.markdown('<div class="input-fixed">', unsafe_allow_html=True)
