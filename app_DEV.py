@@ -469,13 +469,23 @@ class StreamlitChatbot:
     
     def render(self):
         """Main render method for the chatbot interface"""
-        # Fixed Header: Title and info note
+        # Fixed Header: Title
         st.markdown('<h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>', unsafe_allow_html=True)
-        st.markdown('''
-        <div class="info-note">
-            💬 Ask the rep below for handyman job information and estimates.
-        </div>
-        ''', unsafe_allow_html=True)
+        
+        # Info note and Clear button on same line
+        info_col, clear_col = st.columns([8, 1])
+        
+        with info_col:
+            st.markdown('''
+            <div class="info-note">
+                💬 Ask the rep below for handyman job information and estimates.
+            </div>
+            ''', unsafe_allow_html=True)
+        
+        with clear_col:
+            st.markdown('<div style="margin-top: 15px;">', unsafe_allow_html=True)
+            clear_button = st.button("Clear", use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         
         # Scrollable chat container with responsive height
         with st.container(height=400):  # This will be overridden by CSS to be responsive
@@ -493,18 +503,11 @@ class StreamlitChatbot:
         # Fixed input section - simple approach
         st.markdown('<div class="input-fixed">', unsafe_allow_html=True)
         
-        # Create columns for chat input and clear button
-        input_col, clear_col = st.columns([8, 1])
-        
-        with input_col:
-            # Use st.chat_input for built-in Enter key support
-            user_input = st.chat_input(
-                placeholder="Type your message here... (Press Enter to send)",
-                key=f"chat_input_{st.session_state.input_key_counter}"
-            )
-        
-        with clear_col:
-            clear_button = st.button("Clear", use_container_width=True)
+        # Chat input at bottom
+        user_input = st.chat_input(
+            placeholder="Type your message here... (Press Enter to send)",
+            key=f"chat_input_{st.session_state.input_key_counter}"
+        )
             
         st.markdown('</div>', unsafe_allow_html=True)
         
