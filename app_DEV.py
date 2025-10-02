@@ -132,8 +132,14 @@ class StreamlitChatbot:
         
         /* Make the scrollable container responsive to viewport height */
         [data-testid="stContainer"] {
-            height: calc(100vh - 280px) !important;
-            max-height: calc(100vh - 280px) !important;
+            position: fixed !important;
+            top: 200px !important;
+            bottom: 100px !important;
+            left: 0 !important;
+            right: 0 !important;
+            height: auto !important;
+            max-height: none !important;
+            margin: 0 20px !important;
         }
         
         .chat-message {
@@ -217,23 +223,29 @@ class StreamlitChatbot:
         /* Use CSS media queries for responsive height */
         @media (max-height: 600px) {
             [data-testid="stContainer"] {
-                height: calc(100vh - 250px) !important;
-                max-height: calc(100vh - 250px) !important;
+                top: 180px !important;
+                bottom: 90px !important;
             }
         }
         
         @media (min-height: 800px) {
             [data-testid="stContainer"] {
-                height: calc(100vh - 280px) !important;
-                max-height: calc(100vh - 280px) !important;
+                top: 200px !important;
+                bottom: 100px !important;
             }
         }
         
         @media (min-height: 1000px) {
             [data-testid="stContainer"] {
-                height: calc(100vh - 280px) !important;
-                max-height: calc(100vh - 280px) !important;
+                top: 200px !important;
+                bottom: 100px !important;
             }
+        }
+        
+        /* Button styling to keep text on one line */
+        .stButton > button {
+            white-space: nowrap !important;
+            overflow: visible !important;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -473,7 +485,7 @@ class StreamlitChatbot:
         st.markdown('<h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>', unsafe_allow_html=True)
         
         # Info note and Clear button on same line
-        info_col, clear_col = st.columns([8, 1])
+        info_col, clear_col = st.columns([7, 2])
         
         with info_col:
             st.markdown('''
@@ -483,8 +495,8 @@ class StreamlitChatbot:
             ''', unsafe_allow_html=True)
         
         with clear_col:
-            st.markdown('<div style="margin-top: 15px; white-space: nowrap;">', unsafe_allow_html=True)
-            clear_button = st.button("New Chat", use_container_width=True)
+            st.markdown('<div style="margin-top: 15px;">', unsafe_allow_html=True)
+            clear_button = st.button("New Chat", use_container_width=True, key="new_chat_btn")
             st.markdown('</div>', unsafe_allow_html=True)
         
         # Scrollable chat container with responsive height - remove extra spacing
