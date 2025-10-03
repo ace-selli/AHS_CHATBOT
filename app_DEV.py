@@ -439,15 +439,7 @@ class StreamlitChatbot:
     
     def render(self):
         """Main render method"""
-        # Check if HTML button was clicked (via query params or session state)
-        query_params = st.query_params
-        if 'clear' in query_params:
-            self._clear_chat()
-            # Use the new API to clear query params
-            st.query_params.clear()
-            st.rerun()
-        
-        # FIXED HEADER with HTML button directly embedded
+        # FIXED HEADER with button
         st.markdown('''
         <div class="fixed-header-section">
             <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
@@ -455,20 +447,16 @@ class StreamlitChatbot:
                 <div class="info-note" style="width: 600px;">
                     💬 Ask the rep below for handyman job information and estimates.
                 </div>
-                <a href="?clear=1" style="text-decoration: none;">
-                    <button style="padding: 0.35rem 0.75rem; background-color: white; 
-                                   border: 1px solid #ddd; border-radius: 20px; 
-                                   font-size: 16px; font-family: 'DM Sans', sans-serif; 
-                                   cursor: pointer; white-space: nowrap;">
-                        New Chat
-                    </button>
-                </a>
+                <div id="new-chat-button-placeholder"></div>
             </div>
         </div>
         ''', unsafe_allow_html=True)
         
         # Spacer to push content below fixed header
         st.markdown('<div class="header-spacer"></div>', unsafe_allow_html=True)
+        
+        # New Chat button - will be moved to header by JavaScript
+        clear_button = st.button("New Chat", key="new_chat_btn")
         
         # SCROLLABLE CHAT CONTAINER - remove height constraints
         with st.container():
@@ -490,7 +478,36 @@ class StreamlitChatbot:
         )
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # Handle actions
+        # JavaScript to move button to header placeholder
+        st.markdown('''
+        <script>
+        function moveNewChatButton() {
+            var buttons = document.querySelectorAll('button');
+            var newChatBtn = null;
+            
+            buttons.forEach(function(btn) {
+                if (btn.textContent.trim() === 'New Chat') {
+                    newChatBtn = btn;
+                }
+            });
+            
+            if (newChatBtn) {
+                var placeholder = document.getElementById('new-chat-button-placeholder');
+                if (placeholder && placeholder.children.length === 0) {
+                    placeholder.appendChild(newChatBtn);
+                }
+            }
+        }
+        
+        setTimeout(moveNewChatButton, 100);
+        setTimeout(moveNewChatButton, 500);
+        </script>
+        ''', unsafe_allow_html=True)
+        
+        # Handle button click - EXACTLY like the old Clear button
+        if clear_button:
+            self._clear_chat()
+        
         if user_input and user_input.strip():
             st.session_state.chat_history.append({'role': 'user', 'content': user_input.strip()})
             st.session_state.input_key_counter += 1
