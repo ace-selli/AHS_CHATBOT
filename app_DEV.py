@@ -110,12 +110,14 @@ class StreamlitChatbot:
         /* FIXED HEADER - absolutely positioned at top */
         .fixed-header-section {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 1200px;
             background-color: #F9F7F4;
             z-index: 1000;
-            padding: 1rem 1.5rem;
+            padding: 1rem 0;
             border-bottom: 2px solid #EEEDE9;
         }
         
@@ -140,15 +142,17 @@ class StreamlitChatbot:
         
         /* Spacer to push content below fixed header */
         .header-spacer {
-            height: 160px;
+            height: 200px;
         }
         
         /* SCROLLABLE CHAT BOX */
         [data-testid="stContainer"] {
-            height: calc(100vh - 270px) !important;
-            max-height: calc(100vh - 270px) !important;
+            height: calc(100vh - 310px) !important;
+            max-height: calc(100vh - 310px) !important;
             overflow-y: auto !important;
-            margin: 0 1.5rem !important;
+            margin: 0 auto !important;
+            width: 90% !important;
+            max-width: 1200px !important;
         }
         
         /* Custom scrollbar */
@@ -439,11 +443,11 @@ class StreamlitChatbot:
         st.markdown('''
         <div class="fixed-header-section">
             <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <div class="info-note" style="flex: 1;">
+            <div style="display: flex; gap: 10px; align-items: center; max-width: 100%;">
+                <div class="info-note" style="flex: 1; max-width: calc(100% - 130px);">
                     💬 Ask the rep below for handyman job information and estimates.
                 </div>
-                <div id="new-chat-placeholder" style="width: 120px;"></div>
+                <div id="new-chat-placeholder" style="width: 120px; flex-shrink: 0;"></div>
             </div>
         </div>
         ''', unsafe_allow_html=True)
@@ -482,7 +486,7 @@ class StreamlitChatbot:
             var buttons = document.querySelectorAll('button');
             var newChatBtn = null;
             buttons.forEach(function(btn) {
-                if (btn.textContent.includes('New Chat')) {
+                if (btn.textContent.trim() === 'New Chat') {
                     newChatBtn = btn;
                 }
             });
@@ -490,8 +494,7 @@ class StreamlitChatbot:
             // Move it to the placeholder in the fixed header
             if (newChatBtn) {
                 var placeholder = document.getElementById('new-chat-placeholder');
-                if (placeholder) {
-                    placeholder.innerHTML = '';
+                if (placeholder && placeholder.children.length === 0) {
                     placeholder.appendChild(newChatBtn);
                 }
             }
