@@ -443,23 +443,26 @@ class StreamlitChatbot:
         query_params = st.query_params
         if 'clear' in query_params:
             self._clear_chat()
+            # Use the new API to clear query params
             st.query_params.clear()
+            st.rerun()
         
         # FIXED HEADER with HTML button directly embedded
         st.markdown('''
         <div class="fixed-header-section">
             <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
-            <div style="display: flex; gap: 10px; align-items: center; justify-content: center; position: relative;">
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
                 <div class="info-note" style="width: 600px;">
                     💬 Ask the rep below for handyman job information and estimates.
                 </div>
-                <button onclick="window.location.search='?clear=1'" 
-                        style="position: absolute; left: 620px; padding: 0.35rem 0.75rem; 
-                               background-color: white; border: 1px solid #ddd; border-radius: 20px; 
-                               font-size: 16px; font-family: 'DM Sans', sans-serif; cursor: pointer; 
-                               white-space: nowrap;">
-                    New Chat
-                </button>
+                <a href="?clear=1" style="text-decoration: none;">
+                    <button style="padding: 0.35rem 0.75rem; background-color: white; 
+                                   border: 1px solid #ddd; border-radius: 20px; 
+                                   font-size: 16px; font-family: 'DM Sans', sans-serif; 
+                                   cursor: pointer; white-space: nowrap;">
+                        New Chat
+                    </button>
+                </a>
             </div>
         </div>
         ''', unsafe_allow_html=True)
