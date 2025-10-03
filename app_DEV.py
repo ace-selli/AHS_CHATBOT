@@ -132,14 +132,9 @@ class StreamlitChatbot:
         
         /* Make the scrollable container responsive to viewport height */
         [data-testid="stContainer"] {
-            position: fixed !important;
-            top: 200px !important;
-            bottom: 100px !important;
-            left: 0 !important;
-            right: 0 !important;
-            height: auto !important;
-            max-height: none !important;
-            margin: 0 20px !important;
+            height: calc(100vh - 200px) !important;
+            max-height: calc(100vh - 200px) !important;
+            margin-bottom: 0 !important;
         }
         
         .chat-message {
@@ -223,22 +218,22 @@ class StreamlitChatbot:
         /* Use CSS media queries for responsive height */
         @media (max-height: 600px) {
             [data-testid="stContainer"] {
-                top: 180px !important;
-                bottom: 90px !important;
+                height: calc(100vh - 180px) !important;
+                max-height: calc(100vh - 180px) !important;
             }
         }
         
         @media (min-height: 800px) {
             [data-testid="stContainer"] {
-                top: 200px !important;
-                bottom: 100px !important;
+                height: calc(100vh - 200px) !important;
+                max-height: calc(100vh - 200px) !important;
             }
         }
         
         @media (min-height: 1000px) {
             [data-testid="stContainer"] {
-                top: 200px !important;
-                bottom: 100px !important;
+                height: calc(100vh - 200px) !important;
+                max-height: calc(100vh - 200px) !important;
             }
         }
         
