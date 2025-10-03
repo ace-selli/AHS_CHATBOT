@@ -443,11 +443,11 @@ class StreamlitChatbot:
         st.markdown('''
         <div class="fixed-header-section">
             <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
-            <div style="display: flex; gap: 10px; align-items: center; max-width: 100%;">
-                <div class="info-note" style="flex: 1; max-width: calc(100% - 130px);">
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                <div class="info-note" style="width: 600px;">
                     💬 Ask the rep below for handyman job information and estimates.
                 </div>
-                <div id="new-chat-placeholder" style="width: 120px; flex-shrink: 0;"></div>
+                <div id="new-chat-placeholder" style="flex-shrink: 0;"></div>
             </div>
         </div>
         ''', unsafe_allow_html=True)
