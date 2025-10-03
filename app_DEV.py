@@ -100,10 +100,22 @@ class StreamlitChatbot:
         }
         
         .main .block-container {
-            padding-top: 1rem;
+            padding-top: 0rem;
             padding-bottom: 0rem;
             max-width: 100%;
             height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Fixed header section */
+        .fixed-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: #F9F7F4;
+            z-index: 999;
+            padding: 1rem 1rem 0.5rem 1rem;
         }
         
         .main-container {
@@ -130,11 +142,17 @@ class StreamlitChatbot:
             color: #1B3139;
         }
         
-        /* Make the scrollable container responsive to viewport height */
+        /* Make the scrollable container responsive to viewport height and positioned below fixed header */
         [data-testid="stContainer"] {
-            height: calc(100vh - 200px) !important;
-            max-height: calc(100vh - 200px) !important;
-            margin-bottom: 0 !important;
+            position: fixed !important;
+            top: 160px !important;
+            bottom: 80px !important;
+            left: 20px !important;
+            right: 20px !important;
+            height: auto !important;
+            max-height: none !important;
+            margin: 0 !important;
+            overflow-y: auto !important;
         }
         
         .chat-message {
@@ -237,10 +255,11 @@ class StreamlitChatbot:
             }
         }
         
-        /* Button styling to keep text on one line */
+        /* Button styling to keep text on one line and reduce padding */
         .stButton > button {
             white-space: nowrap !important;
             overflow: visible !important;
+            padding: 0.25rem 0.5rem !important;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -476,7 +495,10 @@ class StreamlitChatbot:
     
     def render(self):
         """Main render method for the chatbot interface"""
-        # Fixed Header: Title
+        # Fixed Header Section - wrap everything in a fixed position div
+        st.markdown('<div class="fixed-header">', unsafe_allow_html=True)
+        
+        # Title
         st.markdown('<h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>', unsafe_allow_html=True)
         
         # Info note and Clear button on same line
@@ -494,9 +516,14 @@ class StreamlitChatbot:
             clear_button = st.button("New Chat", use_container_width=True, key="new_chat_btn")
             st.markdown('</div>', unsafe_allow_html=True)
         
-        # Scrollable chat container with responsive height - remove extra spacing
+        st.markdown('</div>', unsafe_allow_html=True)  # Close fixed-header
+        
+        # Add spacer to push content below fixed header
+        st.markdown('<div style="height: 160px;"></div>', unsafe_allow_html=True)
+        
+        # Scrollable chat container - will be positioned fixed by CSS
         st.markdown('<div style="margin-bottom: 0;">', unsafe_allow_html=True)
-        with st.container(height=400):  # This will be overridden by CSS to be responsive
+        with st.container(height=400):  # Height overridden by CSS
             # Display chat history or placeholder
             if len(st.session_state.chat_history) == 0:
                 st.markdown('''
@@ -509,7 +536,7 @@ class StreamlitChatbot:
                     self._render_message(message, i)
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # Fixed input section - simple approach
+        # Fixed input section at bottom
         st.markdown('<div class="input-fixed">', unsafe_allow_html=True)
         
         # Chat input at bottom
