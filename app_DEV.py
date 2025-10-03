@@ -115,10 +115,9 @@ class StreamlitChatbot:
             transform: translateX(-50%);
             width: 90%;
             max-width: 1200px;
-            background-color: #F9F7F4;
+            background-color: transparent;
             z-index: 1000;
             padding: 1rem 0;
-            border-bottom: 2px solid #EEEDE9;
         }
         
         .chat-title {
@@ -145,14 +144,15 @@ class StreamlitChatbot:
             height: 200px;
         }
         
-        /* SCROLLABLE CHAT BOX */
+        /* Remove container scrolling - let page scroll naturally */
         [data-testid="stContainer"] {
-            height: calc(100vh - 310px) !important;
-            max-height: calc(100vh - 310px) !important;
-            overflow-y: auto !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow-y: visible !important;
             margin: 0 auto !important;
             width: 90% !important;
             max-width: 1200px !important;
+            border: none !important;
         }
         
         /* Custom scrollbar */
@@ -443,11 +443,11 @@ class StreamlitChatbot:
         st.markdown('''
         <div class="fixed-header-section">
             <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
-            <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: center; position: relative;">
                 <div class="info-note" style="width: 600px;">
                     💬 Ask the rep below for handyman job information and estimates.
                 </div>
-                <div id="new-chat-placeholder" style="flex-shrink: 0;"></div>
+                <div id="new-chat-placeholder" style="position: absolute; left: 620px;"></div>
             </div>
         </div>
         ''', unsafe_allow_html=True)
@@ -458,8 +458,8 @@ class StreamlitChatbot:
         # New Chat button positioned to align with placeholder
         clear_button = st.button("New Chat", key="new_chat_btn")
         
-        # SCROLLABLE CHAT CONTAINER
-        with st.container(height=500):
+        # SCROLLABLE CHAT CONTAINER - remove height constraints
+        with st.container():
             if len(st.session_state.chat_history) == 0:
                 st.markdown('''
                 <div style="text-align: center; color: #888; font-style: italic; padding: 40px 0;">
