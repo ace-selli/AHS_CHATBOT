@@ -495,11 +495,19 @@ class StreamlitChatbot:
             if (newChatBtn) {
                 var placeholder = document.getElementById('new-chat-placeholder');
                 if (placeholder && placeholder.children.length === 0) {
+                    // Style the button to match the row
+                    newChatBtn.style.marginTop = '0';
                     placeholder.appendChild(newChatBtn);
                 }
             }
         }, 100);
         </script>
+        <style>
+        #new-chat-placeholder button {
+            margin-top: 0 !important;
+            vertical-align: middle !important;
+        }
+        </style>
         ''', unsafe_allow_html=True)
         
         # Handle actions
