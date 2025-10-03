@@ -455,8 +455,10 @@ class StreamlitChatbot:
         # Spacer to push content below fixed header
         st.markdown('<div class="header-spacer"></div>', unsafe_allow_html=True)
         
-        # New Chat button positioned to align with placeholder
+        # Hidden container for the New Chat button (will be moved by JS)
+        st.markdown('<div id="button-source" style="display: none;">', unsafe_allow_html=True)
         clear_button = st.button("New Chat", key="new_chat_btn")
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # SCROLLABLE CHAT CONTAINER - remove height constraints
         with st.container():
@@ -481,50 +483,37 @@ class StreamlitChatbot:
         # JavaScript to move the button into the fixed header
         st.markdown('''
         <script>
-        function moveNewChatButton() {
-            // Find the New Chat button
-            var buttons = document.querySelectorAll('button');
-            var newChatBtn = null;
-            buttons.forEach(function(btn) {
-                if (btn.textContent.trim() === 'New Chat') {
-                    newChatBtn = btn;
-                }
-            });
+        function moveButton() {
+            var sourceDiv = document.getElementById('button-source');
+            var placeholder = document.getElementById('new-chat-placeholder');
             
-            // Move it to the placeholder in the fixed header
-            if (newChatBtn) {
-                var placeholder = document.getElementById('new-chat-placeholder');
-                if (placeholder) {
-                    // Remove the button from its current location
-                    var btnContainer = newChatBtn.closest('[data-testid="column"]');
-                    if (btnContainer) {
-                        btnContainer.style.display = 'none';
-                    }
+            if (sourceDiv && placeholder) {
+                var button = sourceDiv.querySelector('button');
+                if (button && placeholder.children.length === 0) {
+                    // Clone and move the button
+                    var clonedBtn = button.cloneNode(true);
+                    placeholder.appendChild(clonedBtn);
                     
-                    // Add to the fixed header
-                    placeholder.innerHTML = '';
-                    placeholder.appendChild(newChatBtn.cloneNode(true));
-                    
-                    // Re-attach click handler
-                    var movedBtn = placeholder.querySelector('button');
-                    if (movedBtn) {
-                        movedBtn.onclick = function() {
-                            newChatBtn.click();
-                        };
-                    }
+                    // Make the cloned button trigger the original
+                    clonedBtn.addEventListener('click', function() {
+                        button.click();
+                    });
                 }
             }
         }
         
-        // Run immediately and also after a delay
-        moveNewChatButton();
-        setTimeout(moveNewChatButton, 100);
-        setTimeout(moveNewChatButton, 500);
+        // Try multiple times to catch Streamlit's rendering
+        setTimeout(moveButton, 50);
+        setTimeout(moveButton, 200);
+        setTimeout(moveButton, 500);
+        setTimeout(moveButton, 1000);
         </script>
         <style>
         #new-chat-placeholder button {
             margin: 0 !important;
-            vertical-align: middle !important;
+        }
+        #button-source {
+            display: none !important;
         }
         </style>
         ''', unsafe_allow_html=True)
