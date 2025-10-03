@@ -439,7 +439,13 @@ class StreamlitChatbot:
     
     def render(self):
         """Main render method"""
-        # FIXED HEADER - all header content in one fixed container
+        # Check if HTML button was clicked (via query params or session state)
+        query_params = st.query_params
+        if 'clear' in query_params:
+            self._clear_chat()
+            st.query_params.clear()
+        
+        # FIXED HEADER with HTML button directly embedded
         st.markdown('''
         <div class="fixed-header-section">
             <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
@@ -447,18 +453,19 @@ class StreamlitChatbot:
                 <div class="info-note" style="width: 600px;">
                     💬 Ask the rep below for handyman job information and estimates.
                 </div>
-                <div id="new-chat-placeholder" style="position: absolute; left: 620px;"></div>
+                <button onclick="window.location.search='?clear=1'" 
+                        style="position: absolute; left: 620px; padding: 0.35rem 0.75rem; 
+                               background-color: white; border: 1px solid #ddd; border-radius: 20px; 
+                               font-size: 16px; font-family: 'DM Sans', sans-serif; cursor: pointer; 
+                               white-space: nowrap;">
+                    New Chat
+                </button>
             </div>
         </div>
         ''', unsafe_allow_html=True)
         
         # Spacer to push content below fixed header
         st.markdown('<div class="header-spacer"></div>', unsafe_allow_html=True)
-        
-        # Hidden container for the New Chat button (will be moved by JS)
-        st.markdown('<div id="button-source" style="display: none;">', unsafe_allow_html=True)
-        clear_button = st.button("New Chat", key="new_chat_btn")
-        st.markdown('</div>', unsafe_allow_html=True)
         
         # SCROLLABLE CHAT CONTAINER - remove height constraints
         with st.container():
@@ -480,48 +487,7 @@ class StreamlitChatbot:
         )
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # JavaScript to move the button into the fixed header
-        st.markdown('''
-        <script>
-        function moveButton() {
-            var sourceDiv = document.getElementById('button-source');
-            var placeholder = document.getElementById('new-chat-placeholder');
-            
-            if (sourceDiv && placeholder) {
-                var button = sourceDiv.querySelector('button');
-                if (button && placeholder.children.length === 0) {
-                    // Clone and move the button
-                    var clonedBtn = button.cloneNode(true);
-                    placeholder.appendChild(clonedBtn);
-                    
-                    // Make the cloned button trigger the original
-                    clonedBtn.addEventListener('click', function() {
-                        button.click();
-                    });
-                }
-            }
-        }
-        
-        // Try multiple times to catch Streamlit's rendering
-        setTimeout(moveButton, 50);
-        setTimeout(moveButton, 200);
-        setTimeout(moveButton, 500);
-        setTimeout(moveButton, 1000);
-        </script>
-        <style>
-        #new-chat-placeholder button {
-            margin: 0 !important;
-        }
-        #button-source {
-            display: none !important;
-        }
-        </style>
-        ''', unsafe_allow_html=True)
-        
         # Handle actions
-        if clear_button:
-            self._clear_chat()
-        
         if user_input and user_input.strip():
             st.session_state.chat_history.append({'role': 'user', 'content': user_input.strip()})
             st.session_state.input_key_counter += 1
