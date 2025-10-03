@@ -83,164 +83,180 @@ class StreamlitChatbot:
             st.session_state.response_count = 0
     
     def _add_custom_css(self):
-        """Add custom CSS styling to match the original design"""
+        """Add custom CSS (visual-only) so: no page scroll, sticky top bars, center chat scroll."""
         st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
-        
-        /* Remove page scrolling and set viewport sizing */
+        /* =========================
+           Tunable layout variables
+           ========================= */
+        :root{
+          --header-h: 64px;     /* approximate height of the title block */
+          --toolbar-h: 56px;    /* height of the info/new chat band */
+          --input-h: 100px;     /* space reserved for the bottom input area */
+          --bg: #F9F7F4;
+        }
+
+        /* =========================
+           Lock page scrolling
+           ========================= */
         html, body {
-            height: 100vh;
-            overflow: hidden;
+          height: 100vh !important;
+          overflow: hidden !important;         /* never page scroll */
         }
-        
+
+        /* Streamlit containers to full viewport and no page scroll */
+        [data-testid="stAppViewContainer"],
         .main {
-            height: 100vh;
-            overflow: hidden;
+          height: 100vh !important;
+          overflow: hidden !important;
         }
-        
+
+        /* The main content scroll frame (middle band).
+           We let THIS scroll, not the page. We also reserve space for the fixed input. */
         .main .block-container {
-            padding-top: 1rem;
-            padding-bottom: 0rem;
-            max-width: 100%;
-            height: 100vh;
+          height: calc(100vh - var(--input-h)) !important;
+          overflow-y: auto !important;
+          background: var(--bg);
+          max-width: 100%;
+          padding-top: 0 !important;            /* we’ll handle spacing with sticky blocks themselves */
+          padding-bottom: 12px !important;      /* small breathing room at bottom of scroll area */
         }
-        
-        .main-container {
-            font-family: 'DM Sans', sans-serif;
-            background-color: #F9F7F4;
+
+        /* =========================
+           Make top two blocks sticky
+           (1) Title block
+           (2) Info/New Chat row
+           ========================= */
+        /* First block (your title markdown) sticks at the top */
+        .main .block-container > div:nth-of-type(1) {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 1002 !important;
+          background: var(--bg) !important;
+          border-bottom: 1px solid rgba(49,51,63,.15);
         }
-        
+
+        /* Second block (the columns row with info note and New Chat button) sticks below the title */
+        .main .block-container > div:nth-of-type(2) {
+          position: sticky !important;
+          top: var(--header-h) !important;
+          z-index: 1001 !important;
+          background: var(--bg) !important;
+          border-bottom: 1px solid rgba(49,51,63,.10);
+          padding-top: 4px !important;
+          padding-bottom: 6px !important;
+        }
+
+        /* =========================
+           Title and info visuals
+           ========================= */
         .chat-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: #1B3139;
-            text-align: center;
-            margin-bottom: 20px;
-            margin-top: 0;
+          font-size: 28px;
+          font-weight: 700;
+          color: #1B3139;
+          text-align: center;
+          margin: 0;
+          padding: 12px 0;
         }
-        
+
         .info-note {
-            background-color: #EEEDE9;
-            border-left: 4px solid #1B3139;
-            padding: 12px 16px;
-            margin: 15px 0;
-            border-radius: 6px;
-            font-size: 16px;
-            color: #1B3139;
+          background-color: #EEEDE9;
+          border-left: 4px solid #1B3139;
+          padding: 12px 16px;
+          margin: 8px 0;
+          border-radius: 6px;
+          font-size: 16px;
+          color: #1B3139;
         }
-        
-        /* Make the scrollable container responsive to viewport height */
-        [data-testid="stContainer"] {
-            height: calc(100vh - 200px) !important;
-            max-height: calc(100vh - 200px) !important;
-            margin-bottom: 0 !important;
-        }
-        
+
+        /* =========================
+           Chat messages visuals
+           ========================= */
         .chat-message {
-            padding: 15px 20px;
-            border-radius: 20px;
-            margin: 15px 0;
-            font-size: 20px;
-            line-height: 1.5;
-            max-width: 80%;
-            font-weight: 500;
+          padding: 15px 20px;
+          border-radius: 20px;
+          margin: 15px 0;
+          font-size: 20px;
+          line-height: 1.5;
+          max-width: 80%;
+          font-weight: 500;
         }
-        
+
         .user-message {
-            background-color: #FF3621;
-            color: white;
-            margin-left: auto;
-            margin-right: 0;
+          background-color: #FF3621;
+          color: white;
+          margin-left: auto;
+          margin-right: 0;
         }
-        
+
         .assistant-message {
-            background-color: #1B3139;
-            color: white;
-            margin-left: 0;
-            margin-right: auto;
+          background-color: #1B3139;
+          color: white;
+          margin-left: 0;
+          margin-right: auto;
         }
-        
+
         .feedback-container {
-            margin-top: 15px;
-            padding: 15px;
-            background-color: transparent;
-            border-radius: 10px;
-            border: none;
-            font-size: 16px;
+          margin-top: 15px;
+          padding: 15px;
+          background-color: transparent;
+          border-radius: 10px;
+          border: none;
+          font-size: 16px;
         }
-        
+
         .feedback-thankyou {
-            color: #00A972;
-            font-weight: bold;
-            margin-top: 8px;
-            font-size: 16px;
+          color: #00A972;
+          font-weight: bold;
+          margin-top: 8px;
+          font-size: 16px;
         }
-        
+
         .stButton > button {
-            border-radius: 20px;
-            font-size: 16px;
+          border-radius: 20px;
+          font-size: 16px;
+          white-space: nowrap !important;
+          overflow: visible !important;
         }
-        
+
         .typing-indicator {
-            background-color: #2D4550;
-            color: #EEEDE9;
-            padding: 15px 20px;
-            border-radius: 20px;
-            margin: 15px 0;
-            font-style: italic;
-            font-size: 18px;
+          background-color: #2D4550;
+          color: #EEEDE9;
+          padding: 15px 20px;
+          border-radius: 20px;
+          margin: 15px 0;
+          font-style: italic;
+          font-size: 18px;
         }
-        
-        /* Fixed input at bottom */
+
+        /* =========================
+           Bottom input (unchanged behavior) but always above content
+           ========================= */
         .input-fixed {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: #F9F7F4;
-            padding: 15px 20px;
-            border-top: 2px solid #EEEDE9;
-            z-index: 1000;
-            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+          position: fixed;
+          left: 0; right: 0; bottom: 0;
+          background-color: var(--bg);
+          padding: 15px 20px;
+          border-top: 2px solid #EEEDE9;
+          z-index: 1100;
+          box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
         }
-        
-        /* Increase font size for text input */
-        .stChatInput input {
-            font-size: 18px !important;
+
+        /* Give the scroll frame extra bottom padding so messages never hide behind input
+           (we already reduced height by var(--input-h), but a tiny cushion feels nicer). */
+        .main .block-container {
+          padding-bottom: 16px !important;
         }
-        
-        /* Increase font size for text areas */
-        .stTextArea textarea {
-            font-size: 16px !important;
-        }
-        
-        /* Use CSS media queries for responsive height */
-        @media (max-height: 600px) {
-            [data-testid="stContainer"] {
-                height: calc(100vh - 180px) !important;
-                max-height: calc(100vh - 180px) !important;
-            }
-        }
-        
-        @media (min-height: 800px) {
-            [data-testid="stContainer"] {
-                height: calc(100vh - 200px) !important;
-                max-height: calc(100vh - 200px) !important;
-            }
-        }
-        
-        @media (min-height: 1000px) {
-            [data-testid="stContainer"] {
-                height: calc(100vh - 200px) !important;
-                max-height: calc(100vh - 200px) !important;
-            }
-        }
-        
-        /* Button styling to keep text on one line */
-        .stButton > button {
-            white-space: nowrap !important;
-            overflow: visible !important;
+
+        /* Larger input text for chat input and text areas */
+        .stChatInput input { font-size: 18px !important; }
+        .stTextArea textarea { font-size: 16px !important; }
+
+        /* ===== IMPORTANT: remove any previous generic stContainer sizing ===== */
+        [data-testid="stContainer"] {
+          height: auto !important;
+          max-height: none !important;
+          margin-bottom: 0 !important;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -477,37 +493,35 @@ class StreamlitChatbot:
 
     def render(self):
         """Main render method for the chatbot interface with sticky header, sticky info bar, and scrollable chat area"""
-
-        # Sticky Title
+        # Title (becomes sticky via CSS nth-of-type(1))
         st.markdown('<h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>', unsafe_allow_html=True)
 
-        # Sticky Info/New Chat bar
-        with st.container():
-            info_col, clear_col = st.columns([7, 2])
-            with info_col:
-                st.markdown('''
-                    <div class="info-note">
-                        💬 Ask the rep below for handyman job information and estimates.
-                    </div>
-                ''', unsafe_allow_html=True)
-            with clear_col:
-                st.markdown('<div style="margin-top: 15px;">', unsafe_allow_html=True)
-                clear_button = st.button("New Chat", use_container_width=True, key="new_chat_btn")
-                st.markdown('</div>', unsafe_allow_html=True)
+        # Info note + New Chat (the entire row becomes sticky via CSS nth-of-type(2))
+        info_col, clear_col = st.columns([7, 2])
+        with info_col:
+            st.markdown('''
+                <div class="info-note">
+                    💬 Ask the rep below for handyman job information and estimates.
+                </div>
+            ''', unsafe_allow_html=True)
+        with clear_col:
+            st.markdown('<div style="margin-top: 15px;">', unsafe_allow_html=True)
+            clear_button = st.button("New Chat", use_container_width=True, key="new_chat_btn")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # Scrollable chat area (CSS will handle height and scrolling)
-        with st.container():
-            if len(st.session_state.chat_history) == 0:
-                st.markdown('''
-                    <div style="text-align: center; color: #888; font-style: italic; padding: 40px 0;">
-                        Start a conversation by typing your message below...
-                    </div>
-                ''', unsafe_allow_html=True)
-            else:
-                for i, message in enumerate(st.session_state.chat_history):
-                    self._render_message(message, i)
+        # Chat messages area — no fixed height here; scrolling is handled by .block-container
+        # (We purposely avoid st.container(height=...) so CSS controls the scroll cleanly.)
+        if len(st.session_state.chat_history) == 0:
+            st.markdown('''
+                <div style="text-align: center; color: #888; font-style: italic; padding: 40px 0;">
+                    Start a conversation by typing your message below...
+                </div>
+            ''', unsafe_allow_html=True)
+        else:
+            for i, message in enumerate(st.session_state.chat_history):
+                self._render_message(message, i)
 
-        # Fixed input section at bottom
+        # Fixed input section at bottom (unchanged functionality)
         st.markdown('<div class="input-fixed">', unsafe_allow_html=True)
         user_input = st.chat_input(
             placeholder="Type your message here... (Press Enter to send)",
@@ -515,11 +529,11 @@ class StreamlitChatbot:
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Handle button clicks
+        # Handle button clicks (no logic changes)
         if clear_button:
             self._clear_chat()
 
-        # Handle user input
+        # Handle user input (no logic changes)
         if user_input and user_input.strip():
             # Add user message
             st.session_state.chat_history.append({
@@ -551,6 +565,7 @@ class StreamlitChatbot:
 
             # Rerun to refresh the interface
             st.rerun()
+
 
 
 def main():
