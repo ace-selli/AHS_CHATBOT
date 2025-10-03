@@ -481,7 +481,7 @@ class StreamlitChatbot:
         # JavaScript to move the button into the fixed header
         st.markdown('''
         <script>
-        setTimeout(function() {
+        function moveNewChatButton() {
             // Find the New Chat button
             var buttons = document.querySelectorAll('button');
             var newChatBtn = null;
@@ -494,17 +494,36 @@ class StreamlitChatbot:
             // Move it to the placeholder in the fixed header
             if (newChatBtn) {
                 var placeholder = document.getElementById('new-chat-placeholder');
-                if (placeholder && placeholder.children.length === 0) {
-                    // Style the button to match the row
-                    newChatBtn.style.marginTop = '0';
-                    placeholder.appendChild(newChatBtn);
+                if (placeholder) {
+                    // Remove the button from its current location
+                    var btnContainer = newChatBtn.closest('[data-testid="column"]');
+                    if (btnContainer) {
+                        btnContainer.style.display = 'none';
+                    }
+                    
+                    // Add to the fixed header
+                    placeholder.innerHTML = '';
+                    placeholder.appendChild(newChatBtn.cloneNode(true));
+                    
+                    // Re-attach click handler
+                    var movedBtn = placeholder.querySelector('button');
+                    if (movedBtn) {
+                        movedBtn.onclick = function() {
+                            newChatBtn.click();
+                        };
+                    }
                 }
             }
-        }, 100);
+        }
+        
+        // Run immediately and also after a delay
+        moveNewChatButton();
+        setTimeout(moveNewChatButton, 100);
+        setTimeout(moveNewChatButton, 500);
         </script>
         <style>
         #new-chat-placeholder button {
-            margin-top: 0 !important;
+            margin: 0 !important;
             vertical-align: middle !important;
         }
         </style>
