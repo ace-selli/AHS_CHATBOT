@@ -115,7 +115,7 @@ class StreamlitChatbot:
             transform: translateX(-50%);
             width: 90%;
             max-width: 1200px;
-            background-color: transparent;
+            background-color: white;
             z-index: 1000;
             padding: 1rem 0;
         }
