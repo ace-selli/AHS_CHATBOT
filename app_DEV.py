@@ -83,183 +83,116 @@ class StreamlitChatbot:
             st.session_state.response_count = 0
     
     def _add_custom_css(self):
-        """Add custom CSS (visual-only) so: no page scroll, sticky top bars, center chat scroll."""
+        """Visual-only CSS: lock page scroll, fixed top bars, and a dedicated middle scroll area."""
         st.markdown("""
         <style>
-        /* =========================
-           Tunable layout variables
-           ========================= */
         :root{
-          --header-h: 64px;     /* approximate height of the title block */
-          --toolbar-h: 56px;    /* height of the info/new chat band */
-          --input-h: 100px;     /* space reserved for the bottom input area */
+          /* Tweak these if needed after you see it on your screen */
+          --header-h: 64px;    /* Title bar height */
+          --toolbar-h: 56px;   /* Info/New Chat bar height */
+          --input-h: 110px;    /* Bottom input area + spacing */
           --bg: #F9F7F4;
+          --border: rgba(49,51,63,.15);
         }
 
-        /* =========================
-           Lock page scrolling
-           ========================= */
-        html, body {
-          height: 100vh !important;
-          overflow: hidden !important;         /* never page scroll */
-        }
-
-        /* Streamlit containers to full viewport and no page scroll */
+        /* ------------- Never allow page/window to scroll ------------- */
+        html, body,
         [data-testid="stAppViewContainer"],
         .main {
           height: 100vh !important;
           overflow: hidden !important;
-        }
-
-        /* The main content scroll frame (middle band).
-           We let THIS scroll, not the page. We also reserve space for the fixed input. */
-        .main .block-container {
-          height: calc(100vh - var(--input-h)) !important;
-          overflow-y: auto !important;
           background: var(--bg);
+        }
+
+        /* Streamlit main content; we will scroll only inside our custom chat pane */
+        .main .block-container {
           max-width: 100%;
-          padding-top: 0 !important;            /* we’ll handle spacing with sticky blocks themselves */
-          padding-bottom: 12px !important;      /* small breathing room at bottom of scroll area */
+          padding: 0 0 calc(var(--input-h) + 12px) 0 !important; /* reserve bottom space */
+          background: var(--bg);
         }
 
-        /* =========================
-           Make top two blocks sticky
-           (1) Title block
-           (2) Info/New Chat row
-           ========================= */
-        /* First block (your title markdown) sticks at the top */
-        .main .block-container > div:nth-of-type(1) {
-          position: sticky !important;
-          top: 0 !important;
-          z-index: 1002 !important;
-          background: var(--bg) !important;
-          border-bottom: 1px solid rgba(49,51,63,.15);
+        /* ------------- Fixed title bar (always visible) ------------- */
+        .app-titlebar {
+          position: fixed; top: 0; left: 0; right: 0;
+          height: var(--header-h);
+          display: flex; align-items: center; justify-content: center;
+          background: var(--bg); z-index: 1002;
+          border-bottom: 1px solid var(--border);
         }
 
-        /* Second block (the columns row with info note and New Chat button) sticks below the title */
-        .main .block-container > div:nth-of-type(2) {
-          position: sticky !important;
-          top: var(--header-h) !important;
-          z-index: 1001 !important;
-          background: var(--bg) !important;
-          border-bottom: 1px solid rgba(49,51,63,.10);
-          padding-top: 4px !important;
-          padding-bottom: 6px !important;
-        }
-
-        /* =========================
-           Title and info visuals
-           ========================= */
-        .chat-title {
-          font-size: 28px;
-          font-weight: 700;
-          color: #1B3139;
-          text-align: center;
+        .app-titlebar h2.chat-title {
+          font-size: 28px; font-weight: 700; color: #1B3139;
           margin: 0;
-          padding: 12px 0;
         }
 
+        /* ------------- Fixed toolbar (Info + New Chat) ------------- */
+        .app-toolbar {
+          position: fixed; top: var(--header-h); left: 0; right: 0;
+          height: var(--toolbar-h);
+          display: flex; align-items: center;
+          background: var(--bg); z-index: 1001;
+          border-bottom: 1px solid rgba(49,51,63,.10);
+          padding: 6px 0;
+        }
+
+        /* Make the Streamlit columns inside the toolbar align nicely */
+        .app-toolbar [data-testid="column"] > div {
+          display: flex; align-items: center;
+        }
+
+        /* Info note styling (unchanged theme) */
         .info-note {
           background-color: #EEEDE9;
           border-left: 4px solid #1B3139;
-          padding: 12px 16px;
-          margin: 8px 0;
+          padding: 10px 14px;
           border-radius: 6px;
           font-size: 16px;
           color: #1B3139;
         }
 
-        /* =========================
-           Chat messages visuals
-           ========================= */
-        .chat-message {
-          padding: 15px 20px;
-          border-radius: 20px;
-          margin: 15px 0;
-          font-size: 20px;
-          line-height: 1.5;
-          max-width: 80%;
-          font-weight: 500;
+        /* ------------- Center chat scroll area ------------- */
+        .app-chat-scroll {
+          /* Place it below the two fixed bars */
+          margin-top: calc(var(--header-h) + var(--toolbar-h));
+          /* Give it a firm height that excludes the bottom input area */
+          height: calc(100vh - var(--header-h) - var(--toolbar-h) - var(--input-h));
+          overflow-y: auto;
+          padding: 8px 0 0 0;
         }
 
-        .user-message {
-          background-color: #FF3621;
-          color: white;
-          margin-left: auto;
-          margin-right: 0;
-        }
+        /* Chat bubbles (same visuals you had) */
+        .chat-message { padding: 15px 20px; border-radius: 20px; margin: 15px 0;
+                        font-size: 20px; line-height: 1.5; max-width: 80%; font-weight: 500; }
+        .user-message { background-color: #FF3621; color: white; margin-left: auto; margin-right: 0; }
+        .assistant-message { background-color: #1B3139; color: white; margin-left: 0; margin-right: auto; }
 
-        .assistant-message {
-          background-color: #1B3139;
-          color: white;
-          margin-left: 0;
-          margin-right: auto;
-        }
+        .feedback-container { margin-top: 15px; padding: 15px; background: transparent; border-radius: 10px; border: none; font-size: 16px; }
+        .feedback-thankyou { color: #00A972; font-weight: bold; margin-top: 8px; font-size: 16px; }
 
-        .feedback-container {
-          margin-top: 15px;
-          padding: 15px;
-          background-color: transparent;
-          border-radius: 10px;
-          border: none;
-          font-size: 16px;
-        }
+        .stButton > button { border-radius: 20px; font-size: 16px; white-space: nowrap !important; overflow: visible !important; }
+        .typing-indicator { background-color: #2D4550; color: #EEEDE9; padding: 15px 20px; border-radius: 20px; margin: 15px 0; font-style: italic; font-size: 18px; }
 
-        .feedback-thankyou {
-          color: #00A972;
-          font-weight: bold;
-          margin-top: 8px;
-          font-size: 16px;
-        }
-
-        .stButton > button {
-          border-radius: 20px;
-          font-size: 16px;
-          white-space: nowrap !important;
-          overflow: visible !important;
-        }
-
-        .typing-indicator {
-          background-color: #2D4550;
-          color: #EEEDE9;
-          padding: 15px 20px;
-          border-radius: 20px;
-          margin: 15px 0;
-          font-style: italic;
-          font-size: 18px;
-        }
-
-        /* =========================
-           Bottom input (unchanged behavior) but always above content
-           ========================= */
+        /* ------------- Bottom input stays fixed (as you had it) ------------- */
         .input-fixed {
-          position: fixed;
-          left: 0; right: 0; bottom: 0;
-          background-color: var(--bg);
+          position: fixed; left: 0; right: 0; bottom: 0;
+          background: var(--bg);
           padding: 15px 20px;
           border-top: 2px solid #EEEDE9;
           z-index: 1100;
           box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
         }
 
-        /* Give the scroll frame extra bottom padding so messages never hide behind input
-           (we already reduced height by var(--input-h), but a tiny cushion feels nicer). */
-        .main .block-container {
-          padding-bottom: 16px !important;
-        }
-
-        /* Larger input text for chat input and text areas */
+        /* Input font sizes (unchanged) */
         .stChatInput input { font-size: 18px !important; }
         .stTextArea textarea { font-size: 16px !important; }
 
-        /* ===== IMPORTANT: remove any previous generic stContainer sizing ===== */
+        /* IMPORTANT: neutralize any previous hard heights on generic Streamlit containers */
         [data-testid="stContainer"] {
-          height: auto !important;
-          max-height: none !important;
-          margin-bottom: 0 !important;
+          height: auto !important; max-height: none !important; margin-bottom: 0 !important;
         }
         </style>
         """, unsafe_allow_html=True)
+
     
     def _call_model_endpoint(self, messages, max_tokens=128):
         """Call the model endpoint with error handling"""
@@ -492,25 +425,26 @@ class StreamlitChatbot:
     
 
     def render(self):
-        """Main render method for the chatbot interface with sticky header, sticky info bar, and scrollable chat area"""
-        # Title (becomes sticky via CSS nth-of-type(1))
-        st.markdown('<h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>', unsafe_allow_html=True)
+        """Render with fixed top bars and a center-only scroll region (visual-only changes)."""
 
-        # Info note + New Chat (the entire row becomes sticky via CSS nth-of-type(2))
+        # Fixed title bar
+        st.markdown('<div class="app-titlebar"><h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2></div>',
+                    unsafe_allow_html=True)
+
+        # Fixed toolbar (Info + New Chat). We wrap the Streamlit columns inside our fixed toolbar.
+        st.markdown('<div class="app-toolbar">', unsafe_allow_html=True)
         info_col, clear_col = st.columns([7, 2])
         with info_col:
-            st.markdown('''
-                <div class="info-note">
-                    💬 Ask the rep below for handyman job information and estimates.
-                </div>
-            ''', unsafe_allow_html=True)
+            st.markdown('<div class="info-note">💬 Ask the rep below for handyman job information and estimates.</div>',
+                        unsafe_allow_html=True)
         with clear_col:
-            st.markdown('<div style="margin-top: 15px;">', unsafe_allow_html=True)
+            st.markdown('<div style="margin-top: 6px; width: 100%;">', unsafe_allow_html=True)
             clear_button = st.button("New Chat", use_container_width=True, key="new_chat_btn")
             st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        # Chat messages area — no fixed height here; scrolling is handled by .block-container
-        # (We purposely avoid st.container(height=...) so CSS controls the scroll cleanly.)
+        # Center chat scroll area (ONLY this scrolls)
+        st.markdown('<div class="app-chat-scroll">', unsafe_allow_html=True)
         if len(st.session_state.chat_history) == 0:
             st.markdown('''
                 <div style="text-align: center; color: #888; font-style: italic; padding: 40px 0;">
@@ -520,8 +454,9 @@ class StreamlitChatbot:
         else:
             for i, message in enumerate(st.session_state.chat_history):
                 self._render_message(message, i)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        # Fixed input section at bottom (unchanged functionality)
+        # Fixed input at bottom (unchanged functionality)
         st.markdown('<div class="input-fixed">', unsafe_allow_html=True)
         user_input = st.chat_input(
             placeholder="Type your message here... (Press Enter to send)",
@@ -529,41 +464,24 @@ class StreamlitChatbot:
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Handle button clicks (no logic changes)
+        # Handle actions (no logic changes)
         if clear_button:
             self._clear_chat()
 
-        # Handle user input (no logic changes)
         if user_input and user_input.strip():
-            # Add user message
-            st.session_state.chat_history.append({
-                'role': 'user',
-                'content': user_input.strip()
-            })
-
-            # Increment counter to clear input field
+            st.session_state.chat_history.append({'role': 'user', 'content': user_input.strip()})
             st.session_state.input_key_counter += 1
 
-            # Show typing indicator and get assistant response
             with st.spinner("Thinking..."):
                 try:
                     assistant_response = self._call_model_endpoint(st.session_state.chat_history)
-                    st.session_state.chat_history.append({
-                        'role': 'assistant',
-                        'content': assistant_response
-                    })
-                    # Save or update conversation log
+                    st.session_state.chat_history.append({'role': 'assistant', 'content': assistant_response})
                     self._save_conversation_log()
                 except Exception as e:
                     error_message = f'Error: {str(e)}'
-                    st.session_state.chat_history.append({
-                        'role': 'assistant',
-                        'content': error_message
-                    })
-                    # Save or update conversation log
+                    st.session_state.chat_history.append({'role': 'assistant', 'content': error_message})
                     self._save_conversation_log()
 
-            # Rerun to refresh the interface
             st.rerun()
 
 
