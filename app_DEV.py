@@ -466,10 +466,12 @@ class StreamlitChatbot:
         # Spacer to push content below fixed header
         st.markdown('<div class="header-spacer"></div>', unsafe_allow_html=True)
         
-        # Hidden Streamlit button to trigger rerun
-        if st.button("_trigger_clear", key="_hidden_clear_btn", type="primary"):
+        # Hidden Streamlit button to trigger rerun - wrapped in hidden div
+        st.markdown('<div style="display: none;">', unsafe_allow_html=True)
+        if st.button("trigger_clear_action", key="_hidden_clear_btn"):
             st.session_state.trigger_clear = True
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # SCROLLABLE CHAT CONTAINER - remove height constraints
         with st.container():
@@ -495,26 +497,16 @@ class StreamlitChatbot:
         st.markdown('''
         <script>
         function triggerClear() {
-            // Find the hidden trigger button and click it
+            // Find the hidden trigger button by its key attribute
             var buttons = document.querySelectorAll('button');
             for (var i = 0; i < buttons.length; i++) {
-                if (buttons[i].textContent.includes('_trigger_clear')) {
+                var btnText = buttons[i].textContent.trim();
+                if (btnText === 'trigger_clear_action') {
                     buttons[i].click();
-                    break;
+                    return;
                 }
             }
         }
-        
-        // Hide the trigger button
-        setTimeout(function() {
-            var buttons = document.querySelectorAll('button');
-            for (var i = 0; i < buttons.length; i++) {
-                if (buttons[i].textContent.includes('_trigger_clear')) {
-                    buttons[i].style.display = 'none';
-                    break;
-                }
-            }
-        }, 100);
         </script>
         ''', unsafe_allow_html=True)
         
