@@ -439,7 +439,16 @@ class StreamlitChatbot:
     
     def render(self):
         """Main render method"""
-        # FIXED HEADER with button
+
+        # (Leave this backwards-compat block intact; it won’t be used once we remove the HTML link.)
+        query_params = st.query_params
+        if 'clear' in query_params:
+            self._clear_chat()
+            # Use the new API to clear query params
+            st.query_params.clear()
+            st.rerun()
+
+        # FIXED HEADER — replace the HTML <a><button> with a placeholder DIV
         st.markdown('''
         <div class="fixed-header-section">
             <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
@@ -447,114 +456,73 @@ class StreamlitChatbot:
                 <div class="info-note" style="width: 600px;">
                     💬 Ask the rep below for handyman job information and estimates.
                 </div>
+                <!-- Real Streamlit button will be moved here -->
                 <div id="new-chat-button-placeholder"></div>
             </div>
         </div>
         ''', unsafe_allow_html=True)
-        
-        # Spacer to push content below fixed header
+
+        # Spacer to push content below fixed header (unchanged)
         st.markdown('<div class="header-spacer"></div>', unsafe_allow_html=True)
-        
-        # New Chat button - will be moved to header by JavaScript
+
+        # Create a REAL Streamlit button (functionality)...
         clear_button = st.button("New Chat", key="new_chat_btn")
-        
+
+        # ...then render the rest of the page as before
         # SCROLLABLE CHAT CONTAINER - remove height constraints
         with st.container():
             if len(st.session_state.chat_history) == 0:
                 st.markdown('''
-                <div style="text-align: center; color: #888; font-style: italic; padding: 40px 0;">
-                    Start a conversation by typing your message below...
-                </div>
+                    <div style="text-align: center; color: #888; font-style: italic; padding: 40px 0;">
+                        Start a conversation by typing your message below...
+                    </div>
                 ''', unsafe_allow_html=True)
             else:
                 for i, message in enumerate(st.session_state.chat_history):
                     self._render_message(message, i)
-        
-        # FIXED INPUT BAR
+
+        # FIXED INPUT BAR (unchanged)
         st.markdown('<div class="fixed-input-section">', unsafe_allow_html=True)
         user_input = st.chat_input(
             placeholder="Type your message here... (Press Enter to send)",
             key=f"chat_input_{st.session_state.input_key_counter}"
         )
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        # JavaScript to move button to header placeholder
+
+        # Move the real Streamlit button into the fixed header placeholder (borrowed from code base 1)
         st.markdown('''
         <script>
         function moveNewChatButton() {
-            // Find all buttons on the page
-            var buttons = document.querySelectorAll('button');
-            var newChatBtn = null;
-            
-            // Find the New Chat button
-            for (var i = 0; i < buttons.length; i++) {
-                if (buttons[i].textContent.trim() === 'New Chat') {
-                    newChatBtn = buttons[i];
-                    break;
-                }
+          // Find the Streamlit-rendered "New Chat" button by text
+          const buttons = document.querySelectorAll('button');
+          let newChatBtn = null;
+          buttons.forEach((btn) => {
+            if (btn.textContent && btn.textContent.trim() === 'New Chat') {
+              newChatBtn = btn;
             }
-            
-            if (newChatBtn) {
-                var placeholder = document.getElementById('new-chat-button-placeholder');
-                
-                if (placeholder) {
-                    // Hide the original container
-                    var btnParent = newChatBtn.closest('div[data-testid="column"]');
-                    if (btnParent) {
-                        btnParent.style.display = 'none';
-                    }
-                    
-                    // Move the actual button element to the placeholder
-                    if (placeholder.children.length === 0) {
-                        placeholder.appendChild(newChatBtn.cloneNode(true));
-                        
-                        // Make the cloned button trigger the original
-                        var clonedBtn = placeholder.querySelector('button');
-                        if (clonedBtn) {
-                            clonedBtn.addEventListener('click', function(e) {
-                                e.preventDefault();
-                                newChatBtn.click();
-                            });
-                        }
-                    }
-                }
+          });
+          if (newChatBtn) {
+            const placeholder = document.getElementById('new-chat-button-placeholder');
+            if (placeholder && placeholder.children.length === 0) {
+              placeholder.appendChild(newChatBtn);
             }
+          }
         }
-        
-        // Try multiple times with different delays
-        moveNewChatButton();
-        setTimeout(moveNewChatButton, 50);
-        setTimeout(moveNewChatButton, 150);
-        setTimeout(moveNewChatButton, 300);
-        setTimeout(moveNewChatButton, 600);
-        setTimeout(moveNewChatButton, 1200);
+        // Try a couple of times to catch post-render timing
+        setTimeout(moveNewChatButton, 100);
+        setTimeout(moveNewChatButton, 500);
         </script>
-        <style>
-        #new-chat-button-placeholder button {
-            padding: 0.35rem 0.75rem !important;
-            background-color: white !important;
-            border: 1px solid #ddd !important;
-            border-radius: 20px !important;
-            font-size: 16px !important;
-            font-family: 'DM Sans', sans-serif !important;
-            cursor: pointer !important;
-            white-space: nowrap !important;
-            margin: 0 !important;
-        }
-        #new-chat-button-placeholder button:hover {
-            background-color: #f8f8f8 !important;
-        }
-        </style>
         ''', unsafe_allow_html=True)
-        
-        # Handle button click - EXACTLY like the old Clear button
+
+        # Handle New Chat clicks using your existing clear method (identical behavior to Code base 1)
         if clear_button:
             self._clear_chat()
-        
+
+        # Handle user input (unchanged)
         if user_input and user_input.strip():
             st.session_state.chat_history.append({'role': 'user', 'content': user_input.strip()})
             st.session_state.input_key_counter += 1
-            
+
             with st.spinner("Thinking..."):
                 try:
                     assistant_response = self._call_model_endpoint(st.session_state.chat_history)
@@ -563,7 +531,7 @@ class StreamlitChatbot:
                 except Exception as e:
                     st.session_state.chat_history.append({'role': 'assistant', 'content': f'Error: {str(e)}'})
                     self._save_conversation_log()
-            
+
             st.rerun()
 
 def main():
