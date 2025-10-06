@@ -439,16 +439,12 @@ class StreamlitChatbot:
     
     def render(self):
         """Main render method"""
-
-        # (Leave this backwards-compat block intact; it won’t be used once we remove the HTML link.)
-        query_params = st.query_params
-        if 'clear' in query_params:
+        # Check if HTML button set the clear flag
+        if st.session_state.get('trigger_clear', False):
+            st.session_state.trigger_clear = False
             self._clear_chat()
-            # Use the new API to clear query params
-            st.query_params.clear()
-            st.rerun()
-
-        # FIXED HEADER — replace the HTML <a><button> with a placeholder DIV
+        
+        # FIXED HEADER with pure HTML button (like code 2)
         st.markdown('''
         <div class="fixed-header-section">
             <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
@@ -456,73 +452,77 @@ class StreamlitChatbot:
                 <div class="info-note" style="width: 600px;">
                     💬 Ask the rep below for handyman job information and estimates.
                 </div>
-                <!-- Real Streamlit button will be moved here -->
-                <div id="new-chat-button-placeholder"></div>
+                <button onclick="triggerClear()" 
+                        style="padding: 0.35rem 0.75rem; background-color: white; 
+                               border: 1px solid #ddd; border-radius: 20px; 
+                               font-size: 16px; font-family: 'DM Sans', sans-serif; 
+                               cursor: pointer; white-space: nowrap;">
+                    New Chat
+                </button>
             </div>
         </div>
         ''', unsafe_allow_html=True)
-
-        # Spacer to push content below fixed header (unchanged)
+        
+        # Spacer to push content below fixed header
         st.markdown('<div class="header-spacer"></div>', unsafe_allow_html=True)
-
-        # Create a REAL Streamlit button (functionality)...
-        clear_button = st.button("New Chat", key="new_chat_btn")
-
-        # ...then render the rest of the page as before
+        
+        # Hidden Streamlit button to trigger rerun
+        if st.button("_trigger_clear", key="_hidden_clear_btn", type="primary"):
+            st.session_state.trigger_clear = True
+            st.rerun()
+        
         # SCROLLABLE CHAT CONTAINER - remove height constraints
         with st.container():
             if len(st.session_state.chat_history) == 0:
                 st.markdown('''
-                    <div style="text-align: center; color: #888; font-style: italic; padding: 40px 0;">
-                        Start a conversation by typing your message below...
-                    </div>
+                <div style="text-align: center; color: #888; font-style: italic; padding: 40px 0;">
+                    Start a conversation by typing your message below...
+                </div>
                 ''', unsafe_allow_html=True)
             else:
                 for i, message in enumerate(st.session_state.chat_history):
                     self._render_message(message, i)
-
-        # FIXED INPUT BAR (unchanged)
+        
+        # FIXED INPUT BAR
         st.markdown('<div class="fixed-input-section">', unsafe_allow_html=True)
         user_input = st.chat_input(
             placeholder="Type your message here... (Press Enter to send)",
             key=f"chat_input_{st.session_state.input_key_counter}"
         )
         st.markdown('</div>', unsafe_allow_html=True)
-
-        # Move the real Streamlit button into the fixed header placeholder (borrowed from code base 1)
+        
+        # JavaScript to trigger hidden button
         st.markdown('''
         <script>
-        function moveNewChatButton() {
-          // Find the Streamlit-rendered "New Chat" button by text
-          const buttons = document.querySelectorAll('button');
-          let newChatBtn = null;
-          buttons.forEach((btn) => {
-            if (btn.textContent && btn.textContent.trim() === 'New Chat') {
-              newChatBtn = btn;
+        function triggerClear() {
+            // Find the hidden trigger button and click it
+            var buttons = document.querySelectorAll('button');
+            for (var i = 0; i < buttons.length; i++) {
+                if (buttons[i].textContent.includes('_trigger_clear')) {
+                    buttons[i].click();
+                    break;
+                }
             }
-          });
-          if (newChatBtn) {
-            const placeholder = document.getElementById('new-chat-button-placeholder');
-            if (placeholder && placeholder.children.length === 0) {
-              placeholder.appendChild(newChatBtn);
-            }
-          }
         }
-        // Try a couple of times to catch post-render timing
-        setTimeout(moveNewChatButton, 100);
-        setTimeout(moveNewChatButton, 500);
+        
+        // Hide the trigger button
+        setTimeout(function() {
+            var buttons = document.querySelectorAll('button');
+            for (var i = 0; i < buttons.length; i++) {
+                if (buttons[i].textContent.includes('_trigger_clear')) {
+                    buttons[i].style.display = 'none';
+                    break;
+                }
+            }
+        }, 100);
         </script>
         ''', unsafe_allow_html=True)
-
-        # Handle New Chat clicks using your existing clear method (identical behavior to Code base 1)
-        if clear_button:
-            self._clear_chat()
-
-        # Handle user input (unchanged)
+        
+        # Handle user input
         if user_input and user_input.strip():
             st.session_state.chat_history.append({'role': 'user', 'content': user_input.strip()})
             st.session_state.input_key_counter += 1
-
+            
             with st.spinner("Thinking..."):
                 try:
                     assistant_response = self._call_model_endpoint(st.session_state.chat_history)
@@ -531,7 +531,7 @@ class StreamlitChatbot:
                 except Exception as e:
                     st.session_state.chat_history.append({'role': 'assistant', 'content': f'Error: {str(e)}'})
                     self._save_conversation_log()
-
+            
             st.rerun()
 
 def main():
