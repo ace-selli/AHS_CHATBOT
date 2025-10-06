@@ -244,6 +244,15 @@ class StreamlitChatbot:
             font-size: 16px !important;
             font-family: 'DM Sans', sans-serif;
         }
+        
+        /* Hide the trigger button completely */
+        button[kind="primary"]:has-text("trigger_clear_action"),
+        button:contains("trigger_clear_action") {
+            display: none !important;
+            visibility: hidden !important;
+            position: absolute !important;
+            left: -9999px !important;
+        }
         </style>
         """, unsafe_allow_html=True)
     
@@ -497,7 +506,7 @@ class StreamlitChatbot:
         st.markdown('''
         <script>
         function triggerClear() {
-            // Find the hidden trigger button by its key attribute
+            // Find the hidden trigger button by its text
             var buttons = document.querySelectorAll('button');
             for (var i = 0; i < buttons.length; i++) {
                 var btnText = buttons[i].textContent.trim();
@@ -507,6 +516,23 @@ class StreamlitChatbot:
                 }
             }
         }
+        
+        // Aggressively hide the trigger button
+        setTimeout(function() {
+            var buttons = document.querySelectorAll('button');
+            for (var i = 0; i < buttons.length; i++) {
+                if (buttons[i].textContent.trim() === 'trigger_clear_action') {
+                    buttons[i].style.display = 'none';
+                    buttons[i].style.visibility = 'hidden';
+                    buttons[i].style.position = 'absolute';
+                    buttons[i].style.left = '-9999px';
+                    var parent = buttons[i].closest('div');
+                    if (parent) {
+                        parent.style.display = 'none';
+                    }
+                }
+            }
+        }, 50);
         </script>
         ''', unsafe_allow_html=True)
         
