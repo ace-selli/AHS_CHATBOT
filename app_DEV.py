@@ -482,26 +482,69 @@ class StreamlitChatbot:
         st.markdown('''
         <script>
         function moveNewChatButton() {
+            // Find all buttons on the page
             var buttons = document.querySelectorAll('button');
             var newChatBtn = null;
             
-            buttons.forEach(function(btn) {
-                if (btn.textContent.trim() === 'New Chat') {
-                    newChatBtn = btn;
+            // Find the New Chat button
+            for (var i = 0; i < buttons.length; i++) {
+                if (buttons[i].textContent.trim() === 'New Chat') {
+                    newChatBtn = buttons[i];
+                    break;
                 }
-            });
+            }
             
             if (newChatBtn) {
                 var placeholder = document.getElementById('new-chat-button-placeholder');
-                if (placeholder && placeholder.children.length === 0) {
-                    placeholder.appendChild(newChatBtn);
+                
+                if (placeholder) {
+                    // Hide the original container
+                    var btnParent = newChatBtn.closest('div[data-testid="column"]');
+                    if (btnParent) {
+                        btnParent.style.display = 'none';
+                    }
+                    
+                    // Move the actual button element to the placeholder
+                    if (placeholder.children.length === 0) {
+                        placeholder.appendChild(newChatBtn.cloneNode(true));
+                        
+                        // Make the cloned button trigger the original
+                        var clonedBtn = placeholder.querySelector('button');
+                        if (clonedBtn) {
+                            clonedBtn.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                newChatBtn.click();
+                            });
+                        }
+                    }
                 }
             }
         }
         
-        setTimeout(moveNewChatButton, 100);
-        setTimeout(moveNewChatButton, 500);
+        // Try multiple times with different delays
+        moveNewChatButton();
+        setTimeout(moveNewChatButton, 50);
+        setTimeout(moveNewChatButton, 150);
+        setTimeout(moveNewChatButton, 300);
+        setTimeout(moveNewChatButton, 600);
+        setTimeout(moveNewChatButton, 1200);
         </script>
+        <style>
+        #new-chat-button-placeholder button {
+            padding: 0.35rem 0.75rem !important;
+            background-color: white !important;
+            border: 1px solid #ddd !important;
+            border-radius: 20px !important;
+            font-size: 16px !important;
+            font-family: 'DM Sans', sans-serif !important;
+            cursor: pointer !important;
+            white-space: nowrap !important;
+            margin: 0 !important;
+        }
+        #new-chat-button-placeholder button:hover {
+            background-color: #f8f8f8 !important;
+        }
+        </style>
         ''', unsafe_allow_html=True)
         
         # Handle button click - EXACTLY like the old Clear button
