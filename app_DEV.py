@@ -438,17 +438,16 @@ class StreamlitChatbot:
         st.rerun()
     
 
+
     def render(self):
-        """Main render method (ONLY the New Chat behavior/placement changed)."""
+        """Main render method"""
     
-        # (Keep any legacy flag logic if you still have it elsewhere; not required now.)
-        # if st.session_state.get('trigger_clear', False):
-        #     st.session_state.trigger_clear = False
-        #     self._clear_chat()
+        # If the hidden Streamlit trigger was clicked in the last run, clear now (same logic you had)
+        if st.session_state.get('trigger_clear', False):
+            st.session_state.trigger_clear = False
+            self._clear_chat()
     
-        # ----- FIXED HEADER -----
-        # Replace the old HTML onclick button with a placeholder.
-        # We'll render a REAL Streamlit button below and move it up here.
+        # ---- FIXED HEADER with pure HTML button (unchanged look/placement) ----
         st.markdown('''
         <div class="fixed-header-section">
             <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
@@ -456,8 +455,13 @@ class StreamlitChatbot:
                 <div class="info-note" style="width: 600px;">
                     💬 Ask the rep below for handyman job information and estimates.
                 </div>
-                <!-- Real Streamlit button will be moved into this placeholder -->
-                <div id="new-chat-button-placeholder"></div>
+                <button onclick="triggerClear()"
+                    style="padding: 0.35rem 0.75rem; background-color: white;
+                           border: 1px solid #ddd; border-radius: 20px;
+                           font-size: 16px; font-family: 'DM Sans', sans-serif;
+                           cursor: pointer; white-space: nowrap;">
+                    New Chat
+                </button>
             </div>
         </div>
         ''', unsafe_allow_html=True)
@@ -465,11 +469,23 @@ class StreamlitChatbot:
         # Spacer to push content below fixed header (unchanged)
         st.markdown('<div class="header-spacer"></div>', unsafe_allow_html=True)
     
-        # ====== REAL Streamlit "New Chat" button (functional source) ======
-        # We render it once here, then move its whole wrapper into the header placeholder via JS.
-        clear_button = st.button("New Chat", key="new_chat_btn")
+        # ---- HIDDEN (off-screen) Streamlit button used as the real trigger ----
+        # IMPORTANT: Do NOT use display:none or visibility:hidden here,
+        # or the programmatic click won’t reach Streamlit.
+        st.markdown(
+            '<div id="clear-trigger-host" '
+            '     style="position:absolute; left:-9999px; top:-9999px; width:1px; height:1px; overflow:hidden;">',
+            unsafe_allow_html=True
+        )
+        clear_trigger = st.button("trigger_clear_action", key="_hidden_clear_btn")
+        st.markdown('</div>', unsafe_allow_html=True)
     
-        # ====== CHAT CONTENT (unchanged) ======
+        # If the hidden Streamlit button fired, set the flag and rerun (same behavior you had)
+        if clear_trigger:
+            st.session_state.trigger_clear = True
+            st.rerun()
+    
+        # ---- Chat content (unchanged) ----
         with st.container():
             if len(st.session_state.chat_history) == 0:
                 st.markdown('''
@@ -481,7 +497,7 @@ class StreamlitChatbot:
                 for i, message in enumerate(st.session_state.chat_history):
                     self._render_message(message, i)
     
-        # ----- FIXED INPUT BAR (unchanged) -----
+        # ---- Fixed input bar (unchanged) ----
         st.markdown('<div class="fixed-input-section">', unsafe_allow_html=True)
         user_input = st.chat_input(
             placeholder="Type your message here... (Press Enter to send)",
@@ -489,62 +505,19 @@ class StreamlitChatbot:
         )
         st.markdown('</div>', unsafe_allow_html=True)
     
-        # ====== Move the Streamlit button into the header placeholder ======
-        # We move the ENTIRE wrapper (div[data-testid="stButton"] / .stButton) so styles/layout stay correct.
+        # ---- JS: click the hidden Streamlit button (no page refresh) ----
         st.markdown('''
-        <style>
-          /* Make the moved Streamlit button render inline next to the NOTE */
-          #new-chat-button-placeholder .stButton { 
-            width: auto !important; 
-            display: inline-flex !important; 
-          }
-          #new-chat-button-placeholder .stButton > button {
-            margin: 0 !important;
-          }
-        </style>
         <script>
-        (function () {
-          function moveNewChatButton() {
-            const placeholder = document.getElementById('new-chat-button-placeholder');
-            if (!placeholder) return false;
-    
-            // Find the most recent "New Chat" button rendered by Streamlit
-            const allBtns = Array.from(document.querySelectorAll('button'))
-              .filter(b => b.textContent && b.textContent.trim() === 'New Chat');
-            if (allBtns.length === 0) return false;
-            const btn = allBtns[allBtns.length - 1];
-    
-            // Move its Streamlit wrapper for correct layout/styling
-            const wrapper =
-              btn.closest('div[data-testid="stButton"]') ||
-              btn.closest('div.stButton') ||
-              btn.parentElement || btn;
-    
-            // Already moved?
-            if (placeholder.contains(wrapper)) return true;
-    
-            // Keep only one in the header
-            placeholder.innerHTML = '';
-            placeholder.appendChild(wrapper);
-            return true;
+          function triggerClear() {
+            const host = document.getElementById('clear-trigger-host');
+            if (!host) return;
+            const btn = host.querySelector('button');
+            if (btn) btn.click();  // programmatically fires the real st.button (causes Streamlit rerun, not a page refresh)
           }
-    
-          // Retry during initial renders (Streamlit reruns)
-          let tries = 0, maxTries = 20;
-          const timer = setInterval(() => {
-            if (moveNewChatButton() || ++tries >= maxTries) clearInterval(timer);
-          }, 100);
-        })();
         </script>
         ''', unsafe_allow_html=True)
     
-        # ====== Handle "New Chat" click (IDENTICAL functionality) ======
-        # No URL navigation, no query params; this is the same clear flow you had,
-        # but now the button lives in the header visually.
-        if clear_button:
-            self._clear_chat()  # your method resets state and calls st.rerun()
-    
-        # ====== Handle user input (unchanged) ======
+        # ---- Handle user input (unchanged) ----
         if user_input and user_input.strip():
             st.session_state.chat_history.append({'role': 'user', 'content': user_input.strip()})
             st.session_state.input_key_counter += 1
