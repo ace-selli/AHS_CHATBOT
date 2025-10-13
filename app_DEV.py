@@ -437,8 +437,6 @@ class StreamlitChatbot:
         st.session_state.response_count = 0
         st.rerun()
     
-
-
     def render(self):
         """Main render method"""
     
@@ -471,7 +469,7 @@ class StreamlitChatbot:
     
         # ---- HIDDEN (off-screen) Streamlit button used as the real trigger ----
         # IMPORTANT: Do NOT use display:none or visibility:hidden here,
-        # or the programmatic click won’t reach Streamlit.
+        # or the programmatic click won't reach Streamlit.
         st.markdown(
             '<div id="clear-trigger-host" '
             '     style="position:absolute; left:-9999px; top:-9999px; width:1px; height:1px; overflow:hidden;">',
