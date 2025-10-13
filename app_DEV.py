@@ -467,19 +467,18 @@ class StreamlitChatbot:
         # Reduced spacer to bring chat content closer to header
         st.markdown('<div style="height: 120px;"></div>', unsafe_allow_html=True)
     
-        # ---- HIDDEN Streamlit button with unique class ----
-        st.markdown('<div class="hidden-clear-button">', unsafe_allow_html=True)
+        # ---- HIDDEN Streamlit button ----
         clear_trigger = st.button("trigger_clear_action", key="_hidden_clear_btn")
-        st.markdown('</div>', unsafe_allow_html=True)
         
-        # CSS to hide only the button with this specific class
+        # Inline CSS to hide the button immediately after it renders
         st.markdown("""
         <style>
-        .hidden-clear-button {
-            position: absolute !important;
-            left: -9999px !important;
-            top: -9999px !important;
-            visibility: hidden !important;
+        button[key="_hidden_clear_btn"] {
+            display: none !important;
+        }
+        /* Also hide its parent container */
+        div:has(> button[key="_hidden_clear_btn"]) {
+            display: none !important;
         }
         </style>
         """, unsafe_allow_html=True)
