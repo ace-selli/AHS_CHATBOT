@@ -504,33 +504,48 @@ class StreamlitChatbot:
         # ---- JS: Attach event listener after page loads ----
         st.components.v1.html("""
         <script>
-          console.log('Script executing');
+          console.log('Script executing at end');
           
           const attachListener = () => {
             const newChatBtn = window.parent.document.getElementById('new-chat-btn');
-            const host = window.parent.document.getElementById('clear-trigger-host');
             
-            console.log('newChatBtn:', newChatBtn);
-            console.log('host:', host);
-            
-            if (newChatBtn && host) {
-              console.log('Both elements found, attaching listener');
+            if (newChatBtn) {
+              console.log('New Chat button found, attaching listener');
+              
               newChatBtn.addEventListener('click', function() {
                 console.log('New Chat clicked!');
-                const btn = host.querySelector('button');
-                console.log('Hidden button found:', btn);
-                if (btn) {
+                
+                // Search ALL buttons on the page
+                const allButtons = window.parent.document.querySelectorAll('button');
+                console.log('Total buttons found:', allButtons.length);
+                
+                let hiddenBtn = null;
+                
+                // Look for button with text containing "trigger_clear"
+                for (let btn of allButtons) {
+                  console.log('Checking button:', btn.textContent, btn);
+                  if (btn.textContent.includes('trigger_clear')) {
+                    hiddenBtn = btn;
+                    console.log('Found by text match!');
+                    break;
+                  }
+                }
+                
+                console.log('Found hidden button:', hiddenBtn);
+                if (hiddenBtn) {
                   console.log('Clicking hidden button');
-                  btn.click();
+                  hiddenBtn.click();
+                } else {
+                  console.log('Could not find hidden button with trigger_clear text');
                 }
               });
             } else {
-              console.log('Retrying...');
+              console.log('New Chat button not found, retrying...');
               setTimeout(attachListener, 100);
             }
           };
           
-          setTimeout(attachListener, 500);
+          setTimeout(attachListener, 1000);
         </script>
         """, height=0)
     
