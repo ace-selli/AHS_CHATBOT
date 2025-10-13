@@ -467,13 +467,23 @@ class StreamlitChatbot:
         # Reduced spacer to bring chat content closer to header
         st.markdown('<div style="height: 120px;"></div>', unsafe_allow_html=True)
     
-        # ---- HIDDEN Streamlit button - completely hidden ----
-        st.markdown(
-            '<div id="clear-trigger-host" style="display: none;">',
-            unsafe_allow_html=True
-        )
-        clear_trigger = st.button("trigger_clear_action", key="_hidden_clear_btn")
-        st.markdown('</div>', unsafe_allow_html=True)
+        # ---- HIDDEN Streamlit button - wrapped in styled container ----
+        # Use a Streamlit container with custom CSS to hide it
+        hide_container = st.container()
+        with hide_container:
+            clear_trigger = st.button("trigger_clear_action", key="_hidden_clear_btn")
+        
+        # Apply CSS to hide the container
+        st.markdown("""
+        <style>
+        div[data-testid="stVerticalBlock"]:has(button[kind="secondary"]) {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            visibility: hidden;
+        }
+        </style>
+        """, unsafe_allow_html=True)
     
         # If the hidden Streamlit button fired, set the flag and rerun (same behavior you had)
         if clear_trigger:
