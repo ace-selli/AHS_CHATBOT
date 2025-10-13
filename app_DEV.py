@@ -465,12 +465,11 @@ class StreamlitChatbot:
         ''', unsafe_allow_html=True)
     
         # Reduced spacer to bring chat content closer to header
-        st.markdown('<div style="height: 150px;"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="height: 120px;"></div>', unsafe_allow_html=True)
     
-        # ---- HIDDEN (off-screen) Streamlit button used as the real trigger ----
-        # Using visibility:hidden instead of position:absolute so it takes up no space
+        # ---- HIDDEN Streamlit button - completely hidden ----
         st.markdown(
-            '<div id="clear-trigger-host" style="visibility:hidden; height:0; overflow:hidden;">',
+            '<div id="clear-trigger-host" style="display: none;">',
             unsafe_allow_html=True
         )
         clear_trigger = st.button("trigger_clear_action", key="_hidden_clear_btn")
