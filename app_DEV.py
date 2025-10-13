@@ -453,7 +453,7 @@ class StreamlitChatbot:
                 <div class="info-note" style="width: 600px;">
                     💬 Ask the rep below for handyman job information and estimates.
                 </div>
-                <button onclick="triggerClear()"
+                <button id="new-chat-btn"
                     style="padding: 0.35rem 0.75rem; background-color: white;
                            border: 1px solid #ddd; border-radius: 20px;
                            font-size: 16px; font-family: 'DM Sans', sans-serif;
@@ -506,12 +506,27 @@ class StreamlitChatbot:
         # ---- JS: click the hidden Streamlit button (no page refresh) ----
         st.markdown('''
         <script>
-          function triggerClear() {
-            const host = document.getElementById('clear-trigger-host');
-            if (!host) return;
-            const btn = host.querySelector('button');
-            if (btn) btn.click();  // programmatically fires the real st.button (causes Streamlit rerun, not a page refresh)
-          }
+          (function() {
+            // Wait for DOM to be ready
+            const attachListener = () => {
+              const newChatBtn = document.getElementById('new-chat-btn');
+              const host = document.getElementById('clear-trigger-host');
+              
+              if (newChatBtn && host) {
+                newChatBtn.addEventListener('click', function() {
+                  const btn = host.querySelector('button');
+                  if (btn) {
+                    btn.click();
+                  }
+                });
+              } else {
+                // Retry if elements not found yet
+                setTimeout(attachListener, 100);
+              }
+            };
+            
+            attachListener();
+          })();
         </script>
         ''', unsafe_allow_html=True)
     
@@ -530,7 +545,6 @@ class StreamlitChatbot:
                     self._save_conversation_log()
     
             st.rerun()
-
 
 def main():
     st.set_page_config(
