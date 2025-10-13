@@ -503,44 +503,38 @@ class StreamlitChatbot:
         )
         st.markdown('</div>', unsafe_allow_html=True)
     
-        # ---- JS: click the hidden Streamlit button (no page refresh) ----
-        st.markdown('''
+        # ---- JS: Attach event listener after page loads ----
+        st.components.v1.html("""
         <script>
-          (function() {
-            console.log('Script loaded');
+          console.log('Script executing');
+          
+          const attachListener = () => {
+            const newChatBtn = window.parent.document.getElementById('new-chat-btn');
+            const host = window.parent.document.getElementById('clear-trigger-host');
             
-            // Wait for DOM to be ready
-            const attachListener = () => {
-              const newChatBtn = document.getElementById('new-chat-btn');
-              const host = document.getElementById('clear-trigger-host');
-              
-              console.log('newChatBtn:', newChatBtn);
-              console.log('host:', host);
-              
-              if (newChatBtn && host) {
-                console.log('Both elements found, attaching listener');
-                newChatBtn.addEventListener('click', function() {
-                  console.log('New Chat clicked!');
-                  const btn = host.querySelector('button');
-                  console.log('Hidden button found:', btn);
-                  if (btn) {
-                    console.log('Clicking hidden button');
-                    btn.click();
-                  } else {
-                    console.log('Hidden button NOT found');
-                  }
-                });
-              } else {
-                // Retry if elements not found yet
-                console.log('Retrying in 100ms...');
-                setTimeout(attachListener, 100);
-              }
-            };
+            console.log('newChatBtn:', newChatBtn);
+            console.log('host:', host);
             
-            attachListener();
-          })();
+            if (newChatBtn && host) {
+              console.log('Both elements found, attaching listener');
+              newChatBtn.addEventListener('click', function() {
+                console.log('New Chat clicked!');
+                const btn = host.querySelector('button');
+                console.log('Hidden button found:', btn);
+                if (btn) {
+                  console.log('Clicking hidden button');
+                  btn.click();
+                }
+              });
+            } else {
+              console.log('Retrying...');
+              setTimeout(attachListener, 100);
+            }
+          };
+          
+          setTimeout(attachListener, 500);
         </script>
-        ''', unsafe_allow_html=True)
+        """, height=0)
     
         # ---- Handle user input (unchanged) ----
         if user_input and user_input.strip():
