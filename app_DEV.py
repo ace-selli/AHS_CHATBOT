@@ -470,31 +470,23 @@ class StreamlitChatbot:
         # ---- HIDDEN Streamlit button ----
         clear_trigger = st.button("trigger_clear_action", key="_hidden_clear_btn")
         
-        # CSS to hide button by its text content
-        st.markdown("""
-        <style>
-        button:has-text("trigger_clear_action"),
-        button:-webkit-any-text("trigger_clear_action") {
-            position: absolute !important;
-            left: -99999px !important;
-            opacity: 0 !important;
-            pointer-events: auto !important;
-        }
-        </style>
+        # Hide the button using JavaScript component
+        st.components.v1.html("""
         <script>
-        // Also hide via JavaScript as backup
-        setTimeout(function() {
-            const buttons = document.querySelectorAll('button');
+        (function hideButton() {
+            const buttons = window.parent.document.querySelectorAll('button');
             buttons.forEach(btn => {
                 if (btn.textContent.includes('trigger_clear')) {
                     btn.style.position = 'absolute';
                     btn.style.left = '-99999px';
-                    btn.style.opacity = '0';
+                    btn.style.top = '-99999px';
+                    btn.style.visibility = 'hidden';
+                    btn.style.pointerEvents = 'auto';
                 }
             });
-        }, 100);
+        })();
         </script>
-        """, unsafe_allow_html=True)
+        """, height=0)
     
         # If the hidden Streamlit button fired, set the flag and rerun (same behavior you had)
         if clear_trigger:
