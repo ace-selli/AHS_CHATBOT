@@ -468,15 +468,13 @@ class StreamlitChatbot:
         st.markdown('<div class="header-spacer"></div>', unsafe_allow_html=True)
     
         # ---- HIDDEN (off-screen) Streamlit button used as the real trigger ----
-        # IMPORTANT: Do NOT use display:none or visibility:hidden here,
-        # or the programmatic click won't reach Streamlit.
-        st.markdown(
-            '<div id="clear-trigger-host" '
-            '     style="position:absolute; left:-9999px; top:-9999px; width:1px; height:1px; overflow:hidden;">',
-            unsafe_allow_html=True
-        )
-        clear_trigger = st.button("trigger_clear_action", key="_hidden_clear_btn")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container():
+            st.markdown(
+                '<div id="clear-trigger-host" style="position:absolute; left:-9999px; top:-9999px;">',
+                unsafe_allow_html=True
+            )
+            clear_trigger = st.button("trigger_clear_action", key="_hidden_clear_btn")
+            st.markdown('</div>', unsafe_allow_html=True)
     
         # If the hidden Streamlit button fired, set the flag and rerun (same behavior you had)
         if clear_trigger:
