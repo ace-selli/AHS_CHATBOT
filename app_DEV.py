@@ -507,20 +507,32 @@ class StreamlitChatbot:
         st.markdown('''
         <script>
           (function() {
+            console.log('Script loaded');
+            
             // Wait for DOM to be ready
             const attachListener = () => {
               const newChatBtn = document.getElementById('new-chat-btn');
               const host = document.getElementById('clear-trigger-host');
               
+              console.log('newChatBtn:', newChatBtn);
+              console.log('host:', host);
+              
               if (newChatBtn && host) {
+                console.log('Both elements found, attaching listener');
                 newChatBtn.addEventListener('click', function() {
+                  console.log('New Chat clicked!');
                   const btn = host.querySelector('button');
+                  console.log('Hidden button found:', btn);
                   if (btn) {
+                    console.log('Clicking hidden button');
                     btn.click();
+                  } else {
+                    console.log('Hidden button NOT found');
                   }
                 });
               } else {
                 // Retry if elements not found yet
+                console.log('Retrying in 100ms...');
                 setTimeout(attachListener, 100);
               }
             };
