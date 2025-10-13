@@ -464,17 +464,17 @@ class StreamlitChatbot:
         </div>
         ''', unsafe_allow_html=True)
     
-        # Spacer to push content below fixed header (unchanged)
-        st.markdown('<div class="header-spacer"></div>', unsafe_allow_html=True)
+        # Reduced spacer to bring chat content closer to header
+        st.markdown('<div style="height: 150px;"></div>', unsafe_allow_html=True)
     
         # ---- HIDDEN (off-screen) Streamlit button used as the real trigger ----
-        with st.container():
-            st.markdown(
-                '<div id="clear-trigger-host" style="position:absolute; left:-9999px; top:-9999px;">',
-                unsafe_allow_html=True
-            )
-            clear_trigger = st.button("trigger_clear_action", key="_hidden_clear_btn")
-            st.markdown('</div>', unsafe_allow_html=True)
+        # Using visibility:hidden instead of position:absolute so it takes up no space
+        st.markdown(
+            '<div id="clear-trigger-host" style="visibility:hidden; height:0; overflow:hidden;">',
+            unsafe_allow_html=True
+        )
+        clear_trigger = st.button("trigger_clear_action", key="_hidden_clear_btn")
+        st.markdown('</div>', unsafe_allow_html=True)
     
         # If the hidden Streamlit button fired, set the flag and rerun (same behavior you had)
         if clear_trigger:
@@ -504,43 +504,26 @@ class StreamlitChatbot:
         # ---- JS: Attach event listener after page loads ----
         st.components.v1.html("""
         <script>
-          console.log('Script executing at end');
-          
           const attachListener = () => {
             const newChatBtn = window.parent.document.getElementById('new-chat-btn');
             
             if (newChatBtn) {
-              console.log('New Chat button found, attaching listener');
-              
               newChatBtn.addEventListener('click', function() {
-                console.log('New Chat clicked!');
-                
-                // Search ALL buttons on the page
                 const allButtons = window.parent.document.querySelectorAll('button');
-                console.log('Total buttons found:', allButtons.length);
-                
                 let hiddenBtn = null;
                 
-                // Look for button with text containing "trigger_clear"
                 for (let btn of allButtons) {
-                  console.log('Checking button:', btn.textContent, btn);
                   if (btn.textContent.includes('trigger_clear')) {
                     hiddenBtn = btn;
-                    console.log('Found by text match!');
                     break;
                   }
                 }
                 
-                console.log('Found hidden button:', hiddenBtn);
                 if (hiddenBtn) {
-                  console.log('Clicking hidden button');
                   hiddenBtn.click();
-                } else {
-                  console.log('Could not find hidden button with trigger_clear text');
                 }
               });
             } else {
-              console.log('New Chat button not found, retrying...');
               setTimeout(attachListener, 100);
             }
           };
