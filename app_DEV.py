@@ -244,6 +244,15 @@ class StreamlitChatbot:
             font-size: 16px !important;
             font-family: 'DM Sans', sans-serif;
         }
+
+        #new-chat-btn:hover {
+            background-color: #f0f0f0 !important;
+            transition: background-color 0.2s ease;
+        }
+        
+        #new-chat-btn {
+            transition: background-color 0.2s ease;
+        }
         </style>
         """, unsafe_allow_html=True)
     
