@@ -474,7 +474,7 @@ class StreamlitChatbot:
         ''', unsafe_allow_html=True)
     
         # Reduced spacer to bring chat content closer to header
-        st.markdown('<div style="height: 120px;"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="height: 100px;"></div>', unsafe_allow_html=True)
     
         # ---- HIDDEN Streamlit button ----
         clear_trigger = st.button("trigger_clear_action", key="_hidden_clear_btn")
