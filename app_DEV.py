@@ -179,7 +179,7 @@ class StreamlitChatbot:
             padding: 15px 20px;
             border-radius: 20px;
             margin: 15px 0;
-            font-size: 20px;
+            font-size: 18px;
             line-height: 1.5;
             max-width: 80%;
             font-weight: 500;
