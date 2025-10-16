@@ -457,7 +457,7 @@ class StreamlitChatbot:
         # ---- FIXED HEADER with pure HTML button (unchanged look/placement) ----
         st.markdown('''
         <div class="fixed-header-section">
-            <h2 class="chat-title">DEV Ace Handyman Services Estimation Rep</h2>
+            <h2 class="chat-title">{st.secrets['PAGE_TITLE']}</h2>
             <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
                 <div class="info-note" style="width: 600px;">
                     💬 Ask the rep below for handyman job information and estimates.
