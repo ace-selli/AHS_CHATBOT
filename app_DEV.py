@@ -58,6 +58,26 @@ def query_endpoint(endpoint_name, messages, max_tokens=128):
     except Exception as e:
         raise Exception(f"Model endpoint error: {str(e)}")
 
+@st.fragment(run_every="30s")
+def keep_session_alive():
+    st.session_state.last_ping = time.time()
+
+def check_inactivity_timeout():
+    timeout_seconds = 1800  # 30 minutes
+    current_time = time.time()
+    
+    if "last_activity" not in st.session_state:
+        st.session_state.last_activity = current_time
+    
+    if "chat_history" in st.session_state and st.session_state.chat_history:
+        last_message = st.session_state.chat_history[-1]
+        if last_message["role"] == "user":
+            st.session_state.last_activity = current_time
+    
+    if current_time - st.session_state.last_activity > timeout_seconds:
+        st.session_state.trigger_clear = True
+        st.rerun()
+
 class StreamlitChatbot:
     def __init__(self, endpoint_name):
         self.endpoint_name = endpoint_name
@@ -445,28 +465,6 @@ class StreamlitChatbot:
         st.session_state.input_key_counter += 1
         st.session_state.response_count = 0
         st.rerun()
-
-    @st.fragment(run_every="30s")
-    def keep_session_alive():
-        st.session_state.last_ping = time.time()
-
-    
-    def check_inactivity_timeout():
-        timeout_seconds = 1800  # 30 minutes
-        current_time = time.time()
-    
-        if "last_activity" not in st.session_state:
-            st.session_state.last_activity = current_time
-    
-        if "chat_history" in st.session_state and st.session_state.chat_history:
-            last_message = st.session_state.chat_history[-1]
-            if last_message["role"] == "user":
-                st.session_state.last_activity = current_time
-    
-        if current_time - st.session_state.last_activity > timeout_seconds:
-            st.session_state.trigger_clear = True
-            st.rerun()
-
     
     def render(self):
         """Main render method"""
