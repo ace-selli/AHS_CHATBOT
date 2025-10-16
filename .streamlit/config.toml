@@ -1,7 +1,6 @@
 [server]
 # Increase session timeout (in seconds)
 maxMessageSize = 200
-sessionTimeout = 28800  # 8 hours in seconds
 
 [browser]
 # Keep the connection alive
