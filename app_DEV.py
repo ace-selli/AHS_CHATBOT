@@ -455,7 +455,7 @@ class StreamlitChatbot:
             self._clear_chat()
     
         # ---- FIXED HEADER with pure HTML button (unchanged look/placement) ----
-        st.markdown('''
+        st.markdown(f'''
         <div class="fixed-header-section">
             <h2 class="chat-title">{st.secrets['PAGE_TITLE']}</h2>
             <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
