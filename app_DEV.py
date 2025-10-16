@@ -282,7 +282,7 @@ class StreamlitChatbot:
                 cursor.execute("SELECT 1 as test")
                 result = cursor.fetchone()
                 
-                cursor.execute("""
+                cursor.execute(f"""
                     INSERT INTO st.secrets['FEEDBACK_TABLE']
                     (id, timestamp, message, feedback, comment)
                     VALUES (?, ?, ?, ?, ?)
@@ -319,7 +319,7 @@ class StreamlitChatbot:
                 )
                 cursor = conn.cursor()
     
-                cursor.execute("""
+                cursor.execute(f"""
                     MERGE INTO st.secrets['FEEDBACK_TABLE'] AS target
                     USING (SELECT ? AS id) AS source
                     ON target.id = source.id
