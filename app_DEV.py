@@ -368,17 +368,38 @@ class StreamlitChatbot:
             # Handle different indentation patterns
             lines = message['content'].split('\n')
             formatted_lines = []
+            prev_was_header = False
+            
             for line in lines:
-                # Count leading spaces/whitespace before the dash
                 stripped = line.lstrip()
+                leading_spaces = len(line) - len(stripped)
+                
+                # Check if this line is a header (ends with colon)
+                is_header = stripped.endswith(':')
+                
                 if stripped.startswith('–') or stripped.startswith('-'):
-                    # Calculate indent level based on original leading spaces
-                    leading_spaces = len(line) - len(stripped)
-                    # Preserve the indentation with non-breaking spaces
-                    indent = '&nbsp;' * leading_spaces if leading_spaces > 0 else '&nbsp;&nbsp;&nbsp;&nbsp;'
+                    # Determine indent level
+                    if prev_was_header:
+                        # This is a task under a header, add extra indent
+                        indent = '&nbsp;' * 8
+                    elif leading_spaces > 0:
+                        # Already indented, preserve and add a bit more
+                        indent = '&nbsp;' * (leading_spaces + 4)
+                    else:
+                        # Top-level bullet
+                        indent = '&nbsp;&nbsp;&nbsp;&nbsp;'
                     formatted_lines.append(indent + stripped)
                 else:
-                    formatted_lines.append(line)
+                    # Non-bullet lines
+                    if leading_spaces > 0:
+                        indent = '&nbsp;' * leading_spaces
+                        formatted_lines.append(indent + stripped)
+                    else:
+                        formatted_lines.append(line)
+                
+                # Update header tracking
+                prev_was_header = is_header
+                        
             formatted_content = '<br>'.join(formatted_lines)
             
             st.markdown(f"""
