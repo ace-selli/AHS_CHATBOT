@@ -365,11 +365,23 @@ class StreamlitChatbot:
             </div>
             """, unsafe_allow_html=True)
         else:
-            # DEBUG: Show the raw content on the page
-            st.write("DEBUG - Raw content:")
-            st.code(repr(message['content']))
+            lines = message['content'].split('\n')
+            formatted_lines = []
             
-            formatted_content = message['content'].replace('\n', '<br>')
+            for line in lines:
+                # Check if line starts with spaces followed by a dash
+                if line.startswith('  -') or line.startswith('  –'):
+                    # Sub-bullet (2 spaces before dash), add more indentation
+                    formatted_lines.append('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + line.strip())
+                elif line.strip().startswith('-') or line.strip().startswith('–'):
+                    # Top-level bullet, standard indent
+                    formatted_lines.append('&nbsp;&nbsp;&nbsp;&nbsp;' + line.strip())
+                else:
+                    # Regular text, no indent
+                    formatted_lines.append(line)
+                        
+            formatted_content = '<br>'.join(formatted_lines)
+            
             st.markdown(f"""
             <div class="chat-message assistant-message">
                 {formatted_content}
