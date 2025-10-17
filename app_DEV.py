@@ -197,7 +197,6 @@ class StreamlitChatbot:
             color: white;
             margin-left: 0;
             margin-right: auto;
-            white-space: pre-wrap;
         }
         
         .feedback-container {
@@ -366,7 +365,22 @@ class StreamlitChatbot:
             </div>
             """, unsafe_allow_html=True)
         else:
-            formatted_content = message['content'].replace('\n', '<br>')
+            # Handle different indentation patterns
+            lines = message['content'].split('\n')
+            formatted_lines = []
+            for line in lines:
+                # Count leading spaces/whitespace before the dash
+                stripped = line.lstrip()
+                if stripped.startswith('–') or stripped.startswith('-'):
+                    # Calculate indent level based on original leading spaces
+                    leading_spaces = len(line) - len(stripped)
+                    # Preserve the indentation with non-breaking spaces
+                    indent = '&nbsp;' * leading_spaces if leading_spaces > 0 else '&nbsp;&nbsp;&nbsp;&nbsp;'
+                    formatted_lines.append(indent + stripped)
+                else:
+                    formatted_lines.append(line)
+            formatted_content = '<br>'.join(formatted_lines)
+            
             st.markdown(f"""
             <div class="chat-message assistant-message">
                 {formatted_content}
