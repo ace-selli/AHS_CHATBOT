@@ -21,6 +21,8 @@ try:
 except ImportError:
     SQLITE_AVAILABLE = False
 
+user_email = st.experimental_user.email if st.experimental_user else "unknown"
+
 # You'll need to implement this function or replace with your model serving logic
 def query_endpoint(endpoint_name, messages, max_tokens=128):
     """Query Databricks model serving endpoint - simple version"""
@@ -311,8 +313,6 @@ class StreamlitChatbot:
         def upsert_conversation(chat_history, conversation_id, response_count):
             try:
                 from databricks import sql
-
-                user_email = st.experimental_user.email if st.experimental_user else "unknown"
                 
                 conn = sql.connect(
                     server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
@@ -419,8 +419,6 @@ class StreamlitChatbot:
         """Handle feedback submission"""
         try:
             feedback_value = st.session_state.feedback_selection.get(str(message_index), 'none')
-
-            user_email = st.experimental_user.email if st.experimental_user else "unknown"
             
             feedback_data = {
                 'id': str(uuid.uuid4()),
