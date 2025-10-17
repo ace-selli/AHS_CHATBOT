@@ -282,8 +282,8 @@ class StreamlitChatbot:
                 cursor.execute("SELECT 1 as test")
                 result = cursor.fetchone()
                 
-                cursor.execute("""
-                    INSERT INTO ai_squad_np.default.handyman_feedback
+                cursor.execute(f"""
+                    INSERT INTO {st.secrets['FEEDBACK_TABLE']}
                     (id, timestamp, message, feedback, comment)
                     VALUES (?, ?, ?, ?, ?)
                 """, (
@@ -311,7 +311,9 @@ class StreamlitChatbot:
         def upsert_conversation(chat_history, conversation_id, response_count):
             try:
                 from databricks import sql
-    
+
+                user_email = st.experimental_user.email if st.experimental_user else "unknown"
+                
                 conn = sql.connect(
                     server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
                     http_path=st.secrets["DATABRICKS_HTTP_PATH"],
@@ -319,8 +321,8 @@ class StreamlitChatbot:
                 )
                 cursor = conn.cursor()
     
-                cursor.execute("""
-                    MERGE INTO ai_squad_np.default.handyman_feedback AS target
+                cursor.execute(f"""
+                    MERGE INTO {st.secrets['FEEDBACK_TABLE']} AS target
                     USING (SELECT ? AS id) AS source
                     ON target.id = source.id
                     WHEN MATCHED THEN UPDATE SET 
@@ -338,7 +340,7 @@ class StreamlitChatbot:
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     str(chat_history),
                     "Conversation_Log",
-                    f"Reponse(s): {response_count}"
+                    f"{user_email}: Reponse(s): {response_count}"
                 ))
     
                 conn.commit()
@@ -417,13 +419,15 @@ class StreamlitChatbot:
         """Handle feedback submission"""
         try:
             feedback_value = st.session_state.feedback_selection.get(str(message_index), 'none')
+
+            user_email = st.experimental_user.email if st.experimental_user else "unknown"
             
             feedback_data = {
                 'id': str(uuid.uuid4()),
                 'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 'message': str(st.session_state.chat_history),
                 'feedback': feedback_value,
-                'comment': comment or ''
+                'comment': f"{user_email}: {comment}" or f"{user_email}"
             }
             
             self._save_feedback_to_database(feedback_data)
@@ -455,9 +459,9 @@ class StreamlitChatbot:
             self._clear_chat()
     
         # ---- FIXED HEADER with pure HTML button (unchanged look/placement) ----
-        st.markdown('''
+        st.markdown(f'''
         <div class="fixed-header-section">
-            <h2 class="chat-title">Ace Handyman Services Estimation Rep</h2>
+            <h2 class="chat-title">{st.secrets['PAGE_TITLE']}</h2>
             <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
                 <div class="info-note" style="width: 600px;">
                     💬 Ask the rep below for handyman job information and estimates.
