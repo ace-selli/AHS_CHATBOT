@@ -365,11 +365,9 @@ class StreamlitChatbot:
             </div>
             """, unsafe_allow_html=True)
         else:
-            # DEBUG: Print the raw content
-            print("="*50)
-            print("RAW CONTENT:")
-            print(repr(message['content']))  # This shows spaces/tabs as \n, \t, etc.
-            print("="*50)
+            # DEBUG: Show the raw content on the page
+            st.write("DEBUG - Raw content:")
+            st.code(repr(message['content']))
             
             formatted_content = message['content'].replace('\n', '<br>')
             st.markdown(f"""
