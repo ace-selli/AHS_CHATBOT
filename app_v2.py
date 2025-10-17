@@ -311,8 +311,6 @@ class StreamlitChatbot:
         def upsert_conversation(chat_history, conversation_id, response_count):
             try:
                 from databricks import sql
-
-                user_email = st.experimental_user.email if st.experimental_user else "unknown"
                 
                 conn = sql.connect(
                     server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
@@ -340,7 +338,7 @@ class StreamlitChatbot:
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     str(chat_history),
                     "Conversation_Log",
-                    f"{user_email}: Reponse(s): {response_count}"
+                    f"Reponse(s): {response_count}"
                 ))
     
                 conn.commit()
@@ -419,15 +417,13 @@ class StreamlitChatbot:
         """Handle feedback submission"""
         try:
             feedback_value = st.session_state.feedback_selection.get(str(message_index), 'none')
-
-            user_email = st.experimental_user.email if st.experimental_user else "unknown"
             
             feedback_data = {
                 'id': str(uuid.uuid4()),
                 'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 'message': str(st.session_state.chat_history),
                 'feedback': feedback_value,
-                'comment': f"{user_email}: {comment}" or f"{user_email}"
+                'comment': comment
             }
             
             self._save_feedback_to_database(feedback_data)
