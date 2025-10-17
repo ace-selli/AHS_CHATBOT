@@ -419,13 +419,15 @@ class StreamlitChatbot:
         """Handle feedback submission"""
         try:
             feedback_value = st.session_state.feedback_selection.get(str(message_index), 'none')
+
+            user_email = st.experimental_user.email if st.experimental_user else "unknown"
             
             feedback_data = {
                 'id': str(uuid.uuid4()),
                 'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 'message': str(st.session_state.chat_history),
                 'feedback': feedback_value,
-                'comment': comment or ''
+                'comment': f"{user_email}: {comment}" or f"{user_email}"
             }
             
             self._save_feedback_to_database(feedback_data)
