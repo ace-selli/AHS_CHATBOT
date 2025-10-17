@@ -365,26 +365,13 @@ class StreamlitChatbot:
             </div>
             """, unsafe_allow_html=True)
         else:
-            lines = message['content'].split('\n')
-            formatted_lines = []
+            # DEBUG: Print the raw content
+            print("="*50)
+            print("RAW CONTENT:")
+            print(repr(message['content']))  # This shows spaces/tabs as \n, \t, etc.
+            print("="*50)
             
-            for i, line in enumerate(lines):
-                stripped = line.strip()
-                
-                if stripped.startswith('–') or stripped.startswith('-'):
-                    # Check if previous line ended with colon (it's a header/category)
-                    if i > 0 and lines[i-1].strip().endswith(':'):
-                        # This bullet is under a header, indent it more
-                        formatted_lines.append('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + stripped)
-                    else:
-                        # Regular bullet, standard indent
-                        formatted_lines.append('&nbsp;&nbsp;&nbsp;&nbsp;' + stripped)
-                else:
-                    # Not a bullet, keep as-is
-                    formatted_lines.append(stripped)
-                        
-            formatted_content = '<br>'.join(formatted_lines)
-            
+            formatted_content = message['content'].replace('\n', '<br>')
             st.markdown(f"""
             <div class="chat-message assistant-message">
                 {formatted_content}
