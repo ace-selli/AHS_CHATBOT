@@ -365,7 +365,18 @@ class StreamlitChatbot:
             </div>
             """, unsafe_allow_html=True)
         else:
-            formatted_content = message['content'].replace('\n', '<br>')
+            # Convert spaces to non-breaking spaces to preserve indentation
+            lines = message['content'].split('\n')
+            formatted_lines = []
+            for line in lines:
+                # Count leading spaces
+                leading_spaces = len(line) - len(line.lstrip(' '))
+                # Replace leading spaces with non-breaking spaces
+                if leading_spaces > 0:
+                    line = '&nbsp;' * leading_spaces + line.lstrip(' ')
+                formatted_lines.append(line)
+            formatted_content = '<br>'.join(formatted_lines)
+            
             st.markdown(f"""
             <div class="chat-message assistant-message">
                 {formatted_content}
