@@ -379,8 +379,13 @@ class StreamlitChatbot:
                 else:
                     # Regular text, no indent
                     formatted_lines.append(line)
-                        
+            
             formatted_content = '<br>'.join(formatted_lines)
+            
+            # Convert URLs to clickable links
+            import re
+            url_pattern = r'(https?://[^\s<]+)'
+            formatted_content = re.sub(url_pattern, r'<a href="\1" target="_blank" style="color: #66B3FF; text-decoration: underline;">\1</a>', formatted_content)
             
             st.markdown(f"""
             <div class="chat-message assistant-message">
