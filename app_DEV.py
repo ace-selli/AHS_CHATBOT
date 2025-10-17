@@ -365,40 +365,23 @@ class StreamlitChatbot:
             </div>
             """, unsafe_allow_html=True)
         else:
-            # Handle different indentation patterns
             lines = message['content'].split('\n')
             formatted_lines = []
-            prev_was_header = False
             
-            for line in lines:
-                stripped = line.lstrip()
-                leading_spaces = len(line) - len(stripped)
-                
-                # Check if this line is a header (ends with colon)
-                is_header = stripped.endswith(':')
+            for i, line in enumerate(lines):
+                stripped = line.strip()
                 
                 if stripped.startswith('–') or stripped.startswith('-'):
-                    # Determine indent level
-                    if prev_was_header:
-                        # This is a task under a header, add extra indent
-                        indent = '&nbsp;' * 8
-                    elif leading_spaces > 0:
-                        # Already indented, preserve and add a bit more
-                        indent = '&nbsp;' * (leading_spaces + 4)
+                    # Check if previous line ended with colon (it's a header/category)
+                    if i > 0 and lines[i-1].strip().endswith(':'):
+                        # This bullet is under a header, indent it more
+                        formatted_lines.append('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + stripped)
                     else:
-                        # Top-level bullet
-                        indent = '&nbsp;&nbsp;&nbsp;&nbsp;'
-                    formatted_lines.append(indent + stripped)
+                        # Regular bullet, standard indent
+                        formatted_lines.append('&nbsp;&nbsp;&nbsp;&nbsp;' + stripped)
                 else:
-                    # Non-bullet lines
-                    if leading_spaces > 0:
-                        indent = '&nbsp;' * leading_spaces
-                        formatted_lines.append(indent + stripped)
-                    else:
-                        formatted_lines.append(line)
-                
-                # Update header tracking
-                prev_was_header = is_header
+                    # Not a bullet, keep as-is
+                    formatted_lines.append(stripped)
                         
             formatted_content = '<br>'.join(formatted_lines)
             
