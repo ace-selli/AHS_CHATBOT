@@ -365,7 +365,28 @@ class StreamlitChatbot:
             </div>
             """, unsafe_allow_html=True)
         else:
-            formatted_content = message['content'].replace('\n', '<br>')
+            lines = message['content'].split('\n')
+            formatted_lines = []
+            
+            for line in lines:
+                # Check if line starts with spaces followed by a dash
+                if line.startswith('  -') or line.startswith('  –'):
+                    # Sub-bullet (2 spaces before dash), add more indentation
+                    formatted_lines.append('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + line.strip())
+                elif line.strip().startswith('-') or line.strip().startswith('–'):
+                    # Top-level bullet, standard indent
+                    formatted_lines.append('&nbsp;&nbsp;&nbsp;&nbsp;' + line.strip())
+                else:
+                    # Regular text, no indent
+                    formatted_lines.append(line)
+            
+            formatted_content = '<br>'.join(formatted_lines)
+            
+            # Convert URLs to clickable links
+            import re
+            url_pattern = r'(https?://[^\s<]+)'
+            formatted_content = re.sub(url_pattern, r'<a href="\1" target="_blank" style="color: #66B3FF; text-decoration: underline;">\1</a>', formatted_content)
+            
             st.markdown(f"""
             <div class="chat-message assistant-message">
                 {formatted_content}
