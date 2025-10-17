@@ -58,26 +58,6 @@ def query_endpoint(endpoint_name, messages, max_tokens=128):
     except Exception as e:
         raise Exception(f"Model endpoint error: {str(e)}")
 
-@st.fragment(run_every="30s")
-def keep_session_alive():
-    st.session_state.last_ping = time.time()
-
-def check_inactivity_timeout():
-    timeout_seconds = 1800  # 30 minutes
-    current_time = time.time()
-    
-    if "last_activity" not in st.session_state:
-        st.session_state.last_activity = current_time
-    
-    if "chat_history" in st.session_state and st.session_state.chat_history:
-        last_message = st.session_state.chat_history[-1]
-        if last_message["role"] == "user":
-            st.session_state.last_activity = current_time
-    
-    if current_time - st.session_state.last_activity > timeout_seconds:
-        st.session_state.trigger_clear = True
-        st.rerun()
-
 class StreamlitChatbot:
     def __init__(self, endpoint_name):
         self.endpoint_name = endpoint_name
@@ -331,7 +311,9 @@ class StreamlitChatbot:
         def upsert_conversation(chat_history, conversation_id, response_count):
             try:
                 from databricks import sql
-    
+
+                user_email = st.experimental_user.email if st.experimental_user else "unknown"
+                
                 conn = sql.connect(
                     server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
                     http_path=st.secrets["DATABRICKS_HTTP_PATH"],
@@ -358,7 +340,7 @@ class StreamlitChatbot:
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     str(chat_history),
                     "Conversation_Log",
-                    f"Reponse(s): {response_count}"
+                    f"{user_email}: Reponse(s): {response_count}"
                 ))
     
                 conn.commit()
@@ -468,8 +450,6 @@ class StreamlitChatbot:
     
     def render(self):
         """Main render method"""
-        keep_session_alive()
-        check_inactivity_timeout()
     
         # If the hidden Streamlit trigger was clicked in the last run, clear now (same logic you had)
         if st.session_state.get('trigger_clear', False):
