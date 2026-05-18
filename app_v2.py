@@ -8,6 +8,7 @@ import os
 # Optional Databricks imports with fallback
 try:
     from databricks.sdk import WorkspaceClient
+    from databricks.sdk.service.serving import ChatMessage, ChatMessageRole
     from databricks import sql
     DATABRICKS_AVAILABLE = True
 except ImportError:
@@ -21,41 +22,64 @@ try:
 except ImportError:
     SQLITE_AVAILABLE = False
 
-# You'll need to implement this function or replace with your model serving logic
+def get_oauth_token():
+    """Obtain OAuth access token using client credentials flow (workspace-level)"""
+    import requests
+    from requests.auth import HTTPBasicAuth
+    
+    workspace_url = "https://adb-439895488707306.6.azuredatabricks.net"
+    token_url = f"{workspace_url}/oidc/v1/token"
+    
+    response = requests.post(
+        token_url,
+        auth=HTTPBasicAuth(st.secrets['DATABRICKS_CLIENTID'], st.secrets['DATABRICKS_SECRET']),
+        data={
+            'grant_type': 'client_credentials',
+            'scope': 'all-apis'
+        }
+    )
+    response.raise_for_status()
+    
+    return response.json()['access_token']
+
 def query_endpoint(endpoint_name, messages, max_tokens=128):
-    """Query Databricks model serving endpoint - simple version"""
+    """Query Databricks model serving endpoint using the Databricks SDK"""
+    import traceback
     try:
-        import requests
-        
-        url = st.secrets['ENDPOINT_URL']
-        
-        headers = {
-            "Authorization": f"Bearer {st.secrets['DATABRICKS_PAT']}",
-            "Content-Type": "application/json"
-        }
-        
-        request_data = {
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": 0.7
-        }
-        
-        response = requests.post(url, headers=headers, json=request_data)
-        response.raise_for_status()
-        
-        result = response.json()
-        
-        # Handle common response formats
-        if "choices" in result and len(result["choices"]) > 0:
-            return {"content": result["choices"][0]["message"]["content"]}
-        elif "predictions" in result and len(result["predictions"]) > 0:
-            return {"content": result["predictions"][0]}
-        elif "content" in result:
-            return {"content": result["content"]}
+        print("🔧 Initializing SDK client")
+        w = WorkspaceClient(
+            host=f"https://{st.secrets['DATABRICKS_SERVER_HOSTNAME']}",
+            client_id=st.secrets['DATABRICKS_CLIENTID'],
+            client_secret=st.secrets['DATABRICKS_SECRET']
+        )
+        print("✓ SDK client created")
+
+        sdk_messages = []
+        for msg in messages:
+            role_str = msg.get("role", "user").lower()
+            if role_str == "assistant":
+                role = ChatMessageRole.ASSISTANT
+            else:
+                role = ChatMessageRole.USER
+            sdk_messages.append(ChatMessage(role=role, content=msg.get("content", "")))
+
+        print("📤 Querying endpoint")
+        response = w.serving_endpoints.query(
+            name=endpoint_name,
+            messages=sdk_messages,
+            max_tokens=max_tokens,
+            temperature=0.7
+        )
+        print("✓ Response received")
+
+        if hasattr(response, 'choices') and response.choices:
+            return {"content": response.choices[0].message.content}
         else:
-            return {"content": str(result)}
-            
+            return {"content": str(response)}
+
     except Exception as e:
+        print(f"❌ SDK Error: {e}")
+        traceback.print_exc()
         raise Exception(f"Model endpoint error: {str(e)}")
 
 class StreamlitChatbot:
@@ -275,7 +299,7 @@ class StreamlitChatbot:
                 conn = sql.connect(
                     server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
                     http_path=st.secrets["DATABRICKS_HTTP_PATH"],
-                    access_token=st.secrets["DATABRICKS_PAT"]
+                    access_token=get_oauth_token()
                 )
                 
                 cursor = conn.cursor()
@@ -315,7 +339,7 @@ class StreamlitChatbot:
                 conn = sql.connect(
                     server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
                     http_path=st.secrets["DATABRICKS_HTTP_PATH"],
-                    access_token=st.secrets["DATABRICKS_PAT"]
+                    access_token=get_oauth_token()
                 )
                 cursor = conn.cursor()
     
@@ -612,6 +636,7 @@ def show_setup_instructions():
 DATABRICKS_SERVER_HOSTNAME=your_hostname
 DATABRICKS_HTTP_PATH=your_http_path  
 DATABRICKS_ACCESS_TOKEN=your_token
+DATABRICKS_ENDPOINT_NAME=your_endpoint_name
         """)
 
 if __name__ == "__main__":
