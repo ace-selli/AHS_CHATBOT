@@ -8,6 +8,7 @@ import os
 # Optional Databricks imports with fallback
 try:
     from databricks.sdk import WorkspaceClient
+    from databricks.sdk.service.serving import ChatMessage, ChatMessageRole
     from databricks import sql
     DATABRICKS_AVAILABLE = True
 except ImportError:
@@ -22,12 +23,12 @@ except ImportError:
     SQLITE_AVAILABLE = False
 
 def get_oauth_token():
-    """Obtain OAuth access token using client credentials flow (account-level)"""
+    """Obtain OAuth access token using client credentials flow (workspace-level)"""
     import requests
     from requests.auth import HTTPBasicAuth
     
-    account_id = st.secrets['DATABRICKS_ACCOUNT_ID']
-    token_url = f"https://accounts.azuredatabricks.net/oidc/accounts/{account_id}/v1/token"
+    workspace_url = "https://adb-439895488707306.6.azuredatabricks.net"
+    token_url = f"{workspace_url}/oidc/v1/token"
     
     response = requests.post(
         token_url,
@@ -41,41 +42,44 @@ def get_oauth_token():
     
     return response.json()['access_token']
 
-# You'll need to implement this function or replace with your model serving logic
 def query_endpoint(endpoint_name, messages, max_tokens=128):
-    """Query Databricks model serving endpoint - simple version"""
+    """Query Databricks model serving endpoint using the Databricks SDK"""
+    import traceback
     try:
-        import requests
-        
-        url = st.secrets['ENDPOINT_URL']
-        
-        headers = {
-            "Authorization": f"Bearer {get_oauth_token()}",
-            "Content-Type": "application/json"
-        }
-        
-        request_data = {
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": 0.7
-        }
-        
-        response = requests.post(url, headers=headers, json=request_data)
-        response.raise_for_status()
-        
-        result = response.json()
-        
-        # Handle common response formats
-        if "choices" in result and len(result["choices"]) > 0:
-            return {"content": result["choices"][0]["message"]["content"]}
-        elif "predictions" in result and len(result["predictions"]) > 0:
-            return {"content": result["predictions"][0]}
-        elif "content" in result:
-            return {"content": result["content"]}
+        print("🔧 Initializing SDK client")
+        w = WorkspaceClient(
+            host=f"https://{st.secrets['DATABRICKS_SERVER_HOSTNAME']}",
+            client_id=st.secrets['DATABRICKS_CLIENTID'],
+            client_secret=st.secrets['DATABRICKS_SECRET']
+        )
+        print("✓ SDK client created")
+
+        sdk_messages = []
+        for msg in messages:
+            role_str = msg.get("role", "user").lower()
+            if role_str == "assistant":
+                role = ChatMessageRole.ASSISTANT
+            else:
+                role = ChatMessageRole.USER
+            sdk_messages.append(ChatMessage(role=role, content=msg.get("content", "")))
+
+        print("📤 Querying endpoint")
+        response = w.serving_endpoints.query(
+            name=endpoint_name,
+            messages=sdk_messages,
+            max_tokens=max_tokens,
+            temperature=0.7
+        )
+        print("✓ Response received")
+
+        if hasattr(response, 'choices') and response.choices:
+            return {"content": response.choices[0].message.content}
         else:
-            return {"content": str(result)}
-            
+            return {"content": str(response)}
+
     except Exception as e:
+        print(f"❌ SDK Error: {e}")
+        traceback.print_exc()
         raise Exception(f"Model endpoint error: {str(e)}")
 
 class StreamlitChatbot:
@@ -632,7 +636,7 @@ def show_setup_instructions():
 DATABRICKS_SERVER_HOSTNAME=your_hostname
 DATABRICKS_HTTP_PATH=your_http_path  
 DATABRICKS_ACCESS_TOKEN=your_token
-DATABRICKS_ACCOUNT_ID=your_account_id
+DATABRICKS_ENDPOINT_NAME=your_endpoint_name
         """)
 
 if __name__ == "__main__":
