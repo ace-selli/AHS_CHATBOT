@@ -22,11 +22,12 @@ except ImportError:
     SQLITE_AVAILABLE = False
 
 def get_oauth_token():
-    """Obtain OAuth access token using client credentials flow"""
+    """Obtain OAuth access token using client credentials flow (account-level)"""
     import requests
     from requests.auth import HTTPBasicAuth
     
-    token_url = f"https://{st.secrets['DATABRICKS_SERVER_HOSTNAME']}/oidc/v1/token"
+    account_id = st.secrets['DATABRICKS_ACCOUNT_ID']
+    token_url = f"https://accounts.azuredatabricks.net/oidc/accounts/{account_id}/v1/token"
     
     response = requests.post(
         token_url,
@@ -631,6 +632,7 @@ def show_setup_instructions():
 DATABRICKS_SERVER_HOSTNAME=your_hostname
 DATABRICKS_HTTP_PATH=your_http_path  
 DATABRICKS_ACCESS_TOKEN=your_token
+DATABRICKS_ACCOUNT_ID=your_account_id
         """)
 
 if __name__ == "__main__":
