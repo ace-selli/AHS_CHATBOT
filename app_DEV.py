@@ -21,6 +21,25 @@ try:
 except ImportError:
     SQLITE_AVAILABLE = False
 
+def get_oauth_token():
+    """Obtain OAuth access token using client credentials flow"""
+    import requests
+    from requests.auth import HTTPBasicAuth
+    
+    token_url = f"https://{st.secrets['DATABRICKS_SERVER_HOSTNAME']}/oidc/v1/token"
+    
+    response = requests.post(
+        token_url,
+        auth=HTTPBasicAuth(st.secrets['DATABRICKS_CLIENTID'], st.secrets['DATABRICKS_SECRET']),
+        data={
+            'grant_type': 'client_credentials',
+            'scope': 'all-apis'
+        }
+    )
+    response.raise_for_status()
+    
+    return response.json()['access_token']
+
 # You'll need to implement this function or replace with your model serving logic
 def query_endpoint(endpoint_name, messages, max_tokens=128):
     """Query Databricks model serving endpoint - simple version"""
@@ -30,7 +49,7 @@ def query_endpoint(endpoint_name, messages, max_tokens=128):
         url = st.secrets['ENDPOINT_URL']
         
         headers = {
-            "Authorization": f"Bearer {st.secrets['DATABRICKS_PAT']}",
+            "Authorization": f"Bearer {get_oauth_token()}",
             "Content-Type": "application/json"
         }
         
@@ -275,7 +294,7 @@ class StreamlitChatbot:
                 conn = sql.connect(
                     server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
                     http_path=st.secrets["DATABRICKS_HTTP_PATH"],
-                    access_token=st.secrets["DATABRICKS_PAT"]
+                    access_token=get_oauth_token()
                 )
                 
                 cursor = conn.cursor()
@@ -315,7 +334,7 @@ class StreamlitChatbot:
                 conn = sql.connect(
                     server_hostname=st.secrets["DATABRICKS_SERVER_HOSTNAME"],
                     http_path=st.secrets["DATABRICKS_HTTP_PATH"],
-                    access_token=st.secrets["DATABRICKS_PAT"]
+                    access_token=get_oauth_token()
                 )
                 cursor = conn.cursor()
     
